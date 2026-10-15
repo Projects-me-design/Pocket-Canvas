@@ -1,6 +1,6 @@
 # Pocket-Canvas
 
-A desktop app for organising ideas visually: put notes, pictures, links, to-do lists, tables, sketches, audio, video and files on an infinite board, group them in columns, connect them with lines, and nest boards inside boards. Start from templates, sync across your computers, and save from your browser with the companion extension.
+A desktop app for organising ideas visually, in the style of Milanote: put notes, pictures, links, to-do lists, tables, sketches, audio, video and files on an infinite board, group them in columns, connect them with lines, and nest boards inside boards. Start from templates, sync across your computers, and save from your browser with the companion extension.
 
 Runs on Windows, Linux and macOS. Local-first: no account, no Pocket-Canvas cloud. Your boards stay on your computers.
 
@@ -42,6 +42,7 @@ The full list is in [FEATURES.md](FEATURES.md). Highlights:
 
 - **[User Guide](docs/USER-GUIDE.md)**: installing and using Pocket-Canvas, for everyone
 - **[Developer Guide](docs/DEVELOPER-GUIDE.md)**: how the code works, testing, building and releasing
+- **[Releasing and code signing](docs/RELEASING.md)**: step-by-step guides to publishing a release and signing the installers
 
 ## Running it from the source
 
@@ -52,7 +53,7 @@ npm install
 npm start
 ```
 
-Tests (see the [Developer Guide](docs/DEVELOPER-GUIDE.md#14-testing)):
+Tests (see the [Developer Guide](docs/DEVELOPER-GUIDE.md#18-testing)):
 
 ```bash
 npm run test:merge      # sync merge engine (plain Node)

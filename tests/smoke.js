@@ -24,16 +24,24 @@ fs.writeFileSync(path.join(oldDir, 'pocketcanvas-data.json'), JSON.stringify({
   boards: { r: { id: 'r', title: OLD_HOME, parentId: null, cards: {}, order: [], links: [], view: { x: 0, y: 0, z: 1 } } }
 }));
 
+const { waitForApp } = require('./wait-ready');
 require(path.join(__dirname, '..', 'main.js'));
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const results = [];
 function check(name, ok) { results.push({ name, ok: !!ok }); }
 
-app.whenReady().then(() => setTimeout(run, 2000));
+app.whenReady().then(run);
 
 async function run() {
-  const win = BrowserWindow.getAllWindows()[0];
+  let win;
+  try { win = await waitForApp(); } catch (err) {
+    console.log('FAIL  ' + err.message);
+    const w = BrowserWindow.getAllWindows()[0];
+    if (w) console.log('Window URL: ' + w.webContents.getURL());
+    fs.rmSync(tmp, { recursive: true, force: true });
+    return app.exit(1);
+  }
   const wc = win.webContents;
   const errors = [];
   wc.on('console-message', (...a) => { if (a[1] >= 3) errors.push(a[2]); });

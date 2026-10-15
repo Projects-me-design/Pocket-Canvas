@@ -81,7 +81,9 @@
         "dmg"
       ],
       "category": "public.app-category.productivity",
-      "icon": "build/icon.png"
+      "icon": "build/icon.png",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false
     },
     "publish": null,
     "extraFiles": [

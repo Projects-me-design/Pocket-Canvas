@@ -10,18 +10,23 @@ on:
 permissions:
   contents: write
 
+env:
+  CI: true
+
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci || npm install
       - name: Sync merge tests
         run: node tests/merge.test.js
+      - name: Install the libraries Electron needs on Linux
+        run: sudo apt-get update && sudo apt-get install -y xvfb libnss3 libgbm1 libasound2t64 libgtk-3-0t64
       - name: Smoke test
         run: xvfb-run -a -s "-screen 0 1400x900x24" npx electron --no-sandbox tests/smoke.js
       - name: Feature tests
@@ -33,13 +38,13 @@ jobs:
           xvfb-run -a -s "-screen 0 1400x900x24" node tests/extension.test.js
       - name: Package the browser extension
         run: node scripts/build-extension.js
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: pocket-canvas-browser-extension
           path: dist/*.zip
       - name: Attach extension to GitHub release
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: dist/*.zip
 
@@ -48,20 +53,65 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
+        os: [windows-latest, ubuntu-24.04, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci || npm install
+      # Signing switches itself on when the matching secrets exist
+      # (see docs/RELEASING.md). With no secrets, unsigned installers are built.
       - name: Build installer
-        run: npx electron-builder --publish never
+        shell: bash
         env:
-          CSC_IDENTITY_AUTO_DISCOVERY: false
-      - uses: actions/upload-artifact@v4
+          # macOS: Developer ID Application certificate + notarisation
+          MAC_CERTIFICATE: ${{ secrets.MAC_CERTIFICATE }}
+          MAC_CERTIFICATE_PASSWORD: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Windows option A: Azure Artifact Signing
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_ENDPOINT: ${{ vars.AZURE_ENDPOINT }}
+          AZURE_SIGNING_ACCOUNT: ${{ vars.AZURE_SIGNING_ACCOUNT }}
+          AZURE_CERT_PROFILE: ${{ vars.AZURE_CERT_PROFILE }}
+          AZURE_PUBLISHER_NAME: ${{ vars.AZURE_PUBLISHER_NAME }}
+          # Windows option B: a .pfx certificate file (testing or older certificates)
+          WIN_CERTIFICATE: ${{ secrets.WIN_CERTIFICATE }}
+          WIN_CERTIFICATE_PASSWORD: ${{ secrets.WIN_CERTIFICATE_PASSWORD }}
+        run: |
+          args=(--publish never)
+          signing=no
+          if [ "$RUNNER_OS" = "macOS" ] && [ -n "$MAC_CERTIFICATE" ]; then
+            export CSC_LINK="$MAC_CERTIFICATE" CSC_KEY_PASSWORD="$MAC_CERTIFICATE_PASSWORD"
+            signing=yes
+            if [ -z "$APPLE_ID" ]; then
+              echo "::warning::Signed but NOT notarised: APPLE_ID secret is missing."
+              unset APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID
+            fi
+          fi
+          if [ "$RUNNER_OS" = "Windows" ] && [ -n "$AZURE_CLIENT_ID" ]; then
+            args+=("-c.win.azureSignOptions.endpoint=$AZURE_ENDPOINT"
+                   "-c.win.azureSignOptions.codeSigningAccountName=$AZURE_SIGNING_ACCOUNT"
+                   "-c.win.azureSignOptions.certificateProfileName=$AZURE_CERT_PROFILE"
+                   "-c.win.azureSignOptions.publisherName=$AZURE_PUBLISHER_NAME")
+            signing=yes
+          elif [ "$RUNNER_OS" = "Windows" ] && [ -n "$WIN_CERTIFICATE" ]; then
+            export WIN_CSC_LINK="$WIN_CERTIFICATE" WIN_CSC_KEY_PASSWORD="$WIN_CERTIFICATE_PASSWORD"
+            signing=yes
+          fi
+          if [ "$signing" = "no" ]; then
+            export CSC_IDENTITY_AUTO_DISCOVERY=false
+            echo "::notice::No signing secrets for $RUNNER_OS - building unsigned."
+          fi
+          unset MAC_CERTIFICATE MAC_CERTIFICATE_PASSWORD WIN_CERTIFICATE WIN_CERTIFICATE_PASSWORD
+          npx electron-builder "${args[@]}"
+      - uses: actions/upload-artifact@v7
         with:
           name: pocket-canvas-${{ matrix.os }}
           path: |
@@ -72,7 +122,7 @@ jobs:
           if-no-files-found: ignore
       - name: Attach to GitHub release
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             dist/*.exe

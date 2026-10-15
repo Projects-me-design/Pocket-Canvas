@@ -13,6 +13,8 @@ fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify({
   linkPreviews: false, sync: { folder: null },
   clipper: { enabled: true, port: +process.env.PC_TEST_PORT, tokens: [] }
 }));
+const { waitForApp } = require('./wait-ready');
 dialog.showMessageBox = async () => ({ response: 1 }); // "Allow"
 require(path.join(__dirname, '..', 'main.js'));
-app.whenReady().then(() => setTimeout(() => console.log('PC-READY'), 2500));
+app.whenReady().then(() => waitForApp()).then(() => console.log('PC-READY'),
+  (err) => { console.log('PC-FAILED ' + err.message); app.exit(1); });

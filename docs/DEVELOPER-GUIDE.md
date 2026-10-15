@@ -4,6 +4,17 @@ How Pocket-Canvas is built, how to run and test it, how to change it, and how to
 
 Version 1.3.0 · © 2026 project-tech-me · project-tech-me@protonmail.com · MIT licence (logo excluded; see `ASSETS-LICENCE.md`)
 
+### Version history
+
+| Version | Main changes | Code to look at |
+|---|---|---|
+| **1.3** | Recycle bin (30 days, synced); delete buttons; password-protected boards (AES-256-GCM, PBKDF2); automatic backups to a chosen folder; spell checking with suggestions | `src/bin.js`, `src/lock.js`, `lib/backup.js`, spelling in `main.js` |
+| **1.2** | Fixed top-left corner (boards grow right/down); templates load top-left; 42 board icons + own pictures; Colour cards with typed codes and automatic names | `ORIGIN_PAD`/`normaliseOrigin()` in `app.js`, `src/board-icons/`, `src/colour-names.js` |
+| **1.1** | Folder sync; templates; comments; link previews; tables, sketches, audio/video; PDF/PNG export; browser extension | `src/merge.js`, `lib/sync.js`, `lib/clipper.js`, `lib/export.js`, `browser-extension/` |
+| **1.0** | Boards, cards, columns, lines, nested boards, search, undo, Markdown/JSON export | `src/app.js` |
+
+**Data compatibility:** every version reads files from earlier versions. All 1.1+ additions are optional fields, so `store.version` is still `1`.
+
 ---
 
 ## Contents
@@ -601,7 +612,7 @@ Each test runs the **real app** with a throw-away data folder and exits non-zero
 ## 19. Building and releasing
 
 ### Version number
-Bump `"version"` in `package.json` (for example `1.2.0`). It flows into installer names, the About box and (via `npm run extension`) the extension's `manifest.json`.
+Bump `"version"` in `package.json` (for example `1.4.0`). It flows into installer names, the About box and (via `npm run extension`) the extension's `manifest.json`.
 
 ### Building locally
 `npm run dist` builds for the operating system you're on; `npm run extension` builds the extension zip. Output goes to `dist/`.
@@ -613,15 +624,17 @@ Bump `"version"` in `package.json` (for example `1.2.0`). It flows into installe
 | macOS | `.dmg` | Must be built on a Mac |
 | Extension | `pocket-canvas-web-clipper-<version>.zip` | Same zip for Chrome Web Store, Edge Add-ons, Opera and Firefox AMO |
 
-Installers are **not code-signed**, so Windows SmartScreen and macOS Gatekeeper warn on first run (the user guide explains). To sign later, add certificates via electron-builder's `CSC_LINK`/`CSC_KEY_PASSWORD` (Windows/macOS) and notarisation (macOS), and remove `CSC_IDENTITY_AUTO_DISCOVERY: false` from the workflow.
+**Step-by-step guides for releasing and code signing are in [RELEASING.md](RELEASING.md).**
+
+Code signing switches on by itself. When the signing secrets are present, the workflow signs (and on macOS, notarises) the installers; without them, it builds unsigned installers. Unsigned installers make Windows SmartScreen and macOS Gatekeeper warn on first run, which the user guide explains. `package.json` already sets `mac.hardenedRuntime`, which notarisation requires. See [RELEASING.md, part 2](RELEASING.md#part-2--code-signing) for the secrets and the Windows options for UK developers.
 
 ### Releasing with GitHub Actions
 `.github/workflows/build.yml` has two stages:
-1. **test** (Ubuntu): merge tests, smoke test, feature tests, extension test in Chromium, then builds the extension zip.
-2. **build** (Windows, Ubuntu, macOS; only if tests pass): builds the installers.
+1. **test** (Ubuntu): merge tests, smoke test, feature tests and the extension test in Chromium, then it builds the extension zip.
+2. **build** (Windows, Ubuntu and macOS; only if the tests pass): builds the installers, signing them when the secrets exist.
 
 - **Test build:** GitHub → **Actions** → **Build installers** → **Run workflow**, then download from the run page.
-- **Release:** `git tag v1.1.0 && git push origin v1.1.0`. Installers and the extension zip are attached to a GitHub Release for that tag.
+- **Release:** bump `package.json`, commit, then `git tag v1.4.0 && git push origin v1.4.0`. The installers and the extension zip are attached to a GitHub Release for that tag. See [RELEASING.md, part 1](RELEASING.md#part-1--releasing-with-github-actions) for every step, and for what to do when a step fails.
 
 ### Publishing the extension
 See `browser-extension/README.md` for each store's submission page, the permission justifications and the privacy answers.

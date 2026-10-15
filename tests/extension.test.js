@@ -44,7 +44,7 @@ const freePort = () => new Promise((r) => { const s = http.createServer().listen
     env: { ...process.env, PC_TEST_DIR: appDir, PC_TEST_PORT: String(PORT) }, stdio: ['ignore', 'pipe', 'pipe']
   });
   await new Promise((resolve, reject) => {
-    const t = setTimeout(() => reject(new Error('App did not start')), 30000);
+    const t = setTimeout(() => reject(new Error('App did not start')), 120000);
     appProc.stdout.on('data', (d) => { if (String(d).includes('PC-READY')) { clearTimeout(t); resolve(); } });
   });
   const dataFile = path.join(appDir, 'pocket-canvas-data.json');

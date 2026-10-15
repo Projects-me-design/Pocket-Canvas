@@ -13,6 +13,7 @@ const os = require('os');
 const http = require('http');
 const crypto = require('crypto');
 const zlib = require('zlib');
+const { waitForApp } = require('./wait-ready');
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'pocket-canvas-features-'));
 const userData = path.join(tmp, 'Pocket-Canvas');
@@ -116,8 +117,7 @@ function request(method, p, { body, token, origin } = {}) {
 
   require(path.join(__dirname, '..', 'main.js'));
   await app.whenReady();
-  await sleep(2500);
-  const wc = BrowserWindow.getAllWindows()[0].webContents;
+  const wc = (await waitForApp()).webContents;
   const errors = [];
   wc.on('console-message', (...a) => { if (a[1] >= 3) errors.push(a[2]); });
   const ex = (js) => wc.executeJavaScript(js);
