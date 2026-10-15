@@ -1,12 +1,24 @@
 # Pocket-Canvas
 
-A desktop app for organising ideas visually, in the style of Milanote: put notes, pictures, links, to-do lists, tables, sketches, audio, video and files on an infinite board, group them in columns, connect them with lines, and nest boards inside boards. Start from templates, sync across your computers, and save from your browser with the companion extension.
+A desktop app for organising ideas visually put notes, pictures, links, to-do lists, tables, sketches, audio, video and files on an infinite board, group them in columns, connect them with lines, and nest boards inside boards. Start from templates, sync across your computers, and save from your browser with the companion extension.
 
 Runs on Windows, Linux and macOS. Local-first: no account, no Pocket-Canvas cloud. Your boards stay on your computers.
 
 **Author:** project-tech-me · project-tech-me@protonmail.com
 
 © 2026 project-tech-me · MIT licence (see `LICENSE`; the logo and third-party licences are covered in `ASSETS-LICENCE.md`)
+
+---
+
+Product Icon — All Rights Reserved
+Icon Artist: MJO-Art · workmjo@gmail.com
+The product Icon files are custom images created by MJO-Art for this project. These icons can not be altered or used without the express permission of the Artist.
+This covers the following files:
+- build/icon.png
+- build/icon.ico
+- src/icon.png
+
+These icon files are not covered by the MIT Licence or the CC0 dedication in this document.
 
 ---
 
