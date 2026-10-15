@@ -1,0 +1,92 @@
+{
+  "name": "pocket-canvas",
+  "productName": "Pocket-Canvas",
+  "version": "1.3.0",
+  "description": "A visual board app for organising ideas: notes, images, links, to-dos, columns and nested boards on an infinite canvas.",
+  "main": "main.js",
+  "author": {
+    "name": "project-tech-me",
+    "email": "project-tech-me@protonmail.com"
+  },
+  "homepage": "https://github.com/Projects-me-design/Pocket-Canvas",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Projects-me-design/Pocket-Canvas.git"
+  },
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "test": "electron tests/smoke.js",
+    "test:features": "electron tests/features.js",
+    "test:merge": "node tests/merge.test.js",
+    "test:extension": "node tests/extension.test.js",
+    "extension": "node scripts/build-extension.js",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:linux": "electron-builder --linux",
+    "dist:mac": "electron-builder --mac"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.projecttechme.pocket-canvas",
+    "productName": "Pocket-Canvas",
+    "copyright": "Copyright © 2026 project-tech-me",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "lib/**/*",
+      "src/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Office",
+      "icon": "build/icon.png",
+      "maintainer": "project-tech-me <project-tech-me@protonmail.com>",
+      "vendor": "project-tech-me",
+      "synopsis": "Visual boards for organising ideas"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.png"
+    },
+    "publish": null,
+    "extraFiles": [
+      "LICENSE",
+      "ASSETS-LICENCE.md"
+    ]
+  }
+}
