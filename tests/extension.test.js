@@ -82,7 +82,12 @@ const freePort = () => new Promise((r) => { const s = http.createServer().listen
     await pop.goto(`chrome-extension://${extId}/popup.html`);
     await pop.waitForSelector('#ready:not([hidden])', { timeout: 8000 });
     check('popup: shows the board picker once connected', (await pop.$$eval('#board option', (o) => o.length)) >= 2);
-    await pop.screenshot({ path: path.join(process.env.SHOT_DIR || tmp, 'popup.png') });
+    // A picture of the popup, for looking at by hand. Only taken when SHOT_DIR is
+    // set, and never fails the test: screen-less cloud machines often can't capture.
+    if (process.env.SHOT_DIR) {
+      await pop.screenshot({ path: path.join(process.env.SHOT_DIR, 'popup.png') })
+        .catch((e) => console.log('(popup screenshot skipped: ' + e.message.split('\n')[0] + ')'));
+    }
 
     // Right-click menu actions, run through the extension's own background code.
     const page = await ctx.newPage();
