@@ -1,8 +1,10 @@
 # Pocket-Canvas — Feature List
 
-Version 1.3.0 · © 2026 project-tech-me
+Version 1.4.0 · © 2026 project-tech-me
 
-Pocket-Canvas is a desktop app for organising ideas visually. Put notes, pictures, links, to-do lists, tables, sketches, audio, video and files on an endless board, then group, connect and nest them however you think. Start from a template, keep your boards in step across your computers, and save things straight from your web browser.
+Pocket-Canvas is a desktop and Android app for organising ideas visually. Put notes, pictures, links, to-do lists, tables, sketches, audio, video and files on an endless board, then group, connect and nest them however you think. Start from a template, keep your boards in step across your computers, and save things straight from your web browser.
+
+**New in 1.4:** **Android app** that syncs with your computers · text formatting (font, size, bold, italic, underline, strikethrough, colour) · line styles (no arrows, arrows at both ends, dashed, dotted, thick, straight) and lines that float freely on the board · delete table rows and columns with one click · 51 board-icon colours plus any colour you like · no more gap at the edge of the board.
 
 **New in 1.3:** Recycle bin (restore anything for 30 days) · easier deleting of cards and boards · password-protected, encrypted boards · automatic backups to a folder you choose · spell checking with suggestions.
 
@@ -16,17 +18,17 @@ Pocket-Canvas is a desktop app for organising ideas visually. Put notes, picture
 
 | Card | What it does |
 |---|---|
-| **Note** | Rich text with **bold**, _italic_ and underline (Ctrl+B / I / U). Quick formatting at the start of a line: `- ` bullets, `1. ` numbered list, `# ` heading, `## ` sub-heading, `> ` quote. Spell-check as you type. |
+| **Note** | Rich text. A **formatting bar** appears while you type: font, size, **bold**, _italic_, underline, ~~strikethrough~~ and colour, for the words you select (or the whole note when nothing is selected). Ctrl+B / I / U, Ctrl+Shift+X for strikethrough. Quick formatting at the start of a line: `- ` bullets, `1. ` numbered list, `# ` heading, `## ` sub-heading, `> ` quote. Spell-check as you type. |
 | **To-do list** | Title plus tick-box tasks and a progress bar. Enter adds the next task; Backspace on an empty task removes it. Ticked tasks are struck through. |
 | **Link** | Paste or type a web address. Pocket-Canvas fetches a **preview**: the page's picture, title, description, site name and icon. Click to open the page in your normal web browser. Edit the title or address any time; right-click to refresh the preview or remove its picture. |
 | **Image** | PNG, JPG, GIF, WebP, BMP, SVG and AVIF. Add one from a file picker, drag it in from your desktop, or paste it from the clipboard. Optional caption. Double-click to open it in your usual image viewer. An **empty picture card** (from a template) shows *Choose picture*: click it, or drop or paste a picture onto it to fill it. |
 | **File** | Attach any file (PDF, Word, spreadsheet, zip…). Shows the file type, name and size, with an **Open** button that uses its normal app. |
 | **Audio / video** | MP3, WAV, OGG, M4A, AAC, FLAC, Opus, MP4, M4V, WebM, OGV, MOV and MKV play right on the card with **Play/Pause**, **Stop** (rewinds to the start), a position slider, time and mute. Videos show in the card. Playing one pauses any other, and playback carries on while you work on the board. |
-| **Table** | Rows and columns of text with an optional heading row. **Tab** / **Shift+Tab** move between cells and **Enter** moves down; new rows are added as you go. **+ Row** / **+ Column** buttons; right-click a cell to insert or delete rows and columns. |
+| **Table** | Rows and columns of text with an optional heading row. **Tab** / **Shift+Tab** move between cells and **Enter** moves down; new rows are added as you go. **+ Row** / **+ Column** and **− Row** / **− Column** buttons: the minus buttons delete the row or column of the cell you last clicked (or the last one), and shade it red first so you can see what will go. Right-click a cell to insert or delete rows and columns anywhere. |
 | **Sketch** | Freehand drawing. Double-click to draw with 9 pen colours and 4 sizes, an eraser, *Undo line* and *Clear*. Smooth lines, kept as shapes (not pixels), so they stay sharp at any zoom and size. Works with a mouse, touchpad, touch screen or pen. |
-| **Board** | A board inside your board, with its own **icon**, colour and card count. Open it to start a fresh canvas inside. Boards can be nested as deep as you like. Right-click › **Change icon…** to choose from 42 icons and 11 colours, or use your own picture. |
+| **Board** | A board inside your board, with its own **icon**, colour and card count. Open it to start a fresh canvas inside. Boards can be nested as deep as you like. Right-click › **Change icon…** to choose from 42 icons and 51 background colours (17 colours, each light, middle and deep), type any colour code or pick one, or use your own picture. |
 | **Column** | A neat vertical stack of cards. Drag cards in, reorder them inside, or drag them back out onto the board. |
-| **Heading** | Large title text for labelling areas of a board. |
+| **Heading** | Large title text for labelling areas of a board. Change its font, size, colour, bold, italic, underline or strikethrough from the formatting bar. |
 | **Colour swatch** | Type any colour code (e.g. `#3A7BE0`, with or without the #) or click the colour to pick one. The **name fills in automatically** with the nearest named colour (e.g. *Dodger Blue*); type your own name and it stays. Good for palettes and mood boards. |
 
 ## Templates
@@ -80,8 +82,8 @@ Pocket-Canvas is a desktop app for organising ideas visually. Put notes, picture
 
 ## Arranging cards
 
-- Drag cards anywhere. The board never runs out of space.
-- Resize notes, to-dos, links, images, files, headings and columns from the bottom-right corner
+- Drag cards anywhere to the right of and below the board's top-left corner. The board never runs out of space in those directions.
+- Resize notes, to-dos, links, pictures, files, headings, columns, tables, sketches and audio/video cards from the bottom-right corner
 - Select several cards by dragging a box around them, or Shift/Ctrl-click to add or remove one
 - Nudge selected cards with the arrow keys (hold Shift for bigger steps)
 - Bring to front or send to back
@@ -97,23 +99,38 @@ Pocket-Canvas is a desktop app for organising ideas visually. Put notes, picture
 - The **sidebar** shows every board as a tree you can fold and unfold
 - The **breadcrumb path** shows where you are and takes you back up with one click
 - Rename a board by clicking its name in the top bar or on its card
-- Deleting a board that still has cards in it asks you first
+- **Right-click a board in the sidebar** to open, rename, change its icon, lock it with a password, or move it to the Recycle bin
+- Deleted boards, with everything inside, can be restored from the Recycle bin for 30 days
+
+## Text formatting
+
+- A small **formatting bar** appears above a card while you type in it
+- **Font:** Default, Sans serif, Serif, Monospace, Handwriting, Rounded or Poster
+- **Size:** 10 to 64 point, **bold**, _italic_, underline, ~~strikethrough~~, 16 text colours, and **Clear formatting**
+- In **notes** it changes the words you select (or the whole note if nothing is selected)
+- In **headings, to-do lists, tables, columns and other cards** it changes all the card's text at once
+- Keyboard: Ctrl+B / Ctrl+I / Ctrl+U, Ctrl+Shift+X for strikethrough
 
 ## Lines and arrows
 
-- Draw a line between any two cards with the **Line** tool, or right-click a card → **Draw line from here**
-- Lines curve gently and follow the cards as you move them
-- Right-click a line to change its colour, show or hide the arrowhead, reverse its direction, or delete it
+- Draw lines with the **Line** tool: click (or tap) where it starts and where it ends, or press and drag
+- Each end can be **attached to a card** or **free on the board**, so lines and arrows can be used on their own as pointers, dividers or underlines
+- Attached ends follow their card as it moves. Select a line to see a handle on each end: drag a handle onto a card to attach it, or anywhere else to free it. Drag a free line to move it.
+- **Arrows:** none, at the end, at the start, or at both ends
+- **Style:** solid, dashed or dotted; thin, medium or thick; curved or straight; any of 11 colours
+- A **line style bar** appears while drawing or with a line selected; the style you pick is used for the next new line too
+- Right-click a line for the same options, plus **Reverse direction**, **Detach from cards** and **Delete**
 
 ## Moving around
 
-- Every board has a fixed **top-left corner** (shown by a shaded edge) and carries on as far as you like to the **right and down**. Cards can't be dragged or pasted past the corner.
+- Every board has a fixed **top-left corner**, flush with the edge of the window, and carries on as far as you like to the **right and down**. Cards can't be dragged or pasted past the corner.
 
 - Scroll to move, or hold **Space** and drag, or drag with the middle mouse button
 - Zoom with Ctrl + scroll (towards the mouse pointer), Ctrl + = / −, or the zoom buttons. Zoom range is 10%–300%.
 - **Fit to content** (Ctrl+1) shows the whole board at once, starting from the top-left corner
 - Each board remembers where you were and how far you'd zoomed
 - Alt + ← goes up to the parent board
+- **Touch screens:** drag one finger on an empty part of the board to move around, pinch with two fingers to zoom, and press and hold for the right-click menu
 
 ## Search
 
@@ -138,7 +155,7 @@ Pocket-Canvas is a desktop app for organising ideas visually. Put notes, picture
 
 ## Syncing between computers
 
-- Keep your boards the same on all your computers through a folder your sync service already keeps up to date: **Dropbox, OneDrive, Google Drive, iCloud Drive, Nextcloud, Syncthing** or similar (a self-hosted Nextcloud or Syncthing works too)
+- Keep your boards the same on all your computers **and Android devices** through a folder your sync service already keeps up to date: **Dropbox, OneDrive, Google Drive, iCloud Drive, Nextcloud, Syncthing** or similar (a self-hosted Nextcloud or Syncthing works too)
 - Set up once per computer in **Settings › Sync**: choose the same folder on each
 - **Nothing is overwritten:** each computer writes only its own file, and Pocket-Canvas merges changes card by card. Different cards changed on different computers are all kept; for the same card, the most recent change wins.
 - Deletions sync too, but a card that was edited on another computer *after* it was deleted is kept, so nothing is silently lost
@@ -147,6 +164,7 @@ Pocket-Canvas is a desktop app for organising ideas visually. Put notes, picture
 - Works offline: changes made while the sync folder is unavailable are shared when it comes back
 - The top bar shows **Synced**, a brief **Updated** when changes arrive, or **Sync problem** with the reason. Settings shows every computer and when it last changed something.
 - Scroll position, zoom, theme and settings stay separate on each computer
+- **On Android**, use a sync app that keeps a real folder on the phone, such as **Syncthing**, and type that folder's location in Settings › Sync (Android asks once to allow access to files)
 
 ## Browser extension (web clipper)
 
@@ -183,8 +201,8 @@ Pocket-Canvas is a desktop app for organising ideas visually. Put notes, picture
 - Clean dotted-grid canvas
 - Hide the sidebar for more room (Ctrl+\)
 - Welcome board on first launch, with tips to get started
-- Keyboard shortcuts list built in (F1)
-- **Settings** (Ctrl+,): your name for comments, this computer's name, link previews on/off, sync, browser extension
+- Keyboard shortcuts list built in (**?** button at the bottom of the sidebar, or F1)
+- **Settings** (Ctrl+, or the ⚙ button): your name for comments, this computer's name, link previews on/off, spelling, backups, sync and the browser extension
 - Your Pocket-Canvas logo on the window, taskbar, installer, sidebar and About box
 - **Board icons** in the sidebar and on board cards. The icon pictures are separate files in `src/board-icons/`, ready to replace with your own designs.
 
@@ -201,8 +219,19 @@ Pocket-Canvas is a desktop app for organising ideas visually. Put notes, picture
 - **Windows:** installer (.exe). You choose the install folder, and it adds desktop and Start menu shortcuts.
 - **Linux:** AppImage (runs without installing) and .deb package (Ubuntu, Debian, Mint…)
 - **macOS:** .dmg
-- A ready-made GitHub Actions workflow runs all the automated tests, then builds all three installers and the browser-extension zip
+- **Android:** an .apk to install on phones and tablets (Android 7 or newer), with the same boards, cards, templates, comments, Recycle bin, password-protected boards and sync. On Android: a ⋮ menu takes the place of the menu bar, Back closes windows and steps out of boards, and boards are shared as Markdown through the share sheet. Export as picture or PDF, folder backups, the browser extension and spelling settings are desktop-only.
+- A ready-made GitHub Actions workflow runs all the automated tests, then builds all three installers, the Android app and the browser-extension zip
 
+---
 
+## Ideas for later
 
+Things that could come next:
 
+- Sharing a board with other people and editing it together at the same time
+- Syncing through a self-hosted server, as an alternative to a sync folder
+- Exporting a board as a multi-page PDF (for example A4 pages) as well as one big page
+- Pressure-sensitive pen strokes and shapes (rectangles, arrows) in sketches
+- Embedding YouTube and other online videos (today they're saved as link cards with a preview)
+- A tested Safari version of the browser extension
+- Phone and tablet apps
