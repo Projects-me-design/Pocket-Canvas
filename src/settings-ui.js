@@ -20,7 +20,11 @@ async function renderSettings() {
   body.classList.add('settings');
   const s = settingsCache = await api.getSettings();
   syncStatus = await api.syncStatus();
-  const tabs = [['general', 'General'], ['spelling', 'Spelling'], ['backups', 'Backups'], ['sync', 'Sync'], ['clipper', 'Browser extension']];
+  const android = api.platform === 'android';
+  // The Android app has no spelling settings (the keyboard does that), folder backups or browser extension.
+  const tabs = android ? [['general', 'General'], ['sync', 'Sync']]
+    : [['general', 'General'], ['spelling', 'Spelling'], ['backups', 'Backups'], ['sync', 'Sync'], ['clipper', 'Browser extension']];
+  if (!tabs.some(([id]) => id === settingsTab)) settingsTab = 'general';
   let pane;
   if (settingsTab === 'spelling') pane = spellingPane(await api.spellGet());
   else if (settingsTab === 'backups') pane = backupsPane(await api.backupStatus());
@@ -39,7 +43,7 @@ function generalPane(s) {
   return `
     <label class="field"><span>Your name <small>shown on comments you write</small></span>
       <input data-set="userName" value="${esc(s.userName)}" maxlength="60"></label>
-    <label class="field"><span>This computer’s name <small>shown to your other computers when syncing</small></span>
+    <label class="field"><span>${api.platform === 'android' ? 'This device’s name' : 'This computer’s name'} <small>shown to your other devices when syncing</small></span>
       <input data-set="deviceName" value="${esc(s.deviceName)}" maxlength="60"></label>
     <label class="check"><input type="checkbox" data-set="linkPreviews" ${s.linkPreviews ? 'checked' : ''}>
       <span><b>Link previews</b><br><small>When you add a link, Pocket-Canvas visits the page to fetch its title, description and picture. Turn this off if you’d rather it didn’t contact websites.</small></span></label>
@@ -47,6 +51,18 @@ function generalPane(s) {
 }
 
 function syncPane(s, st) {
+  if (!st.enabled && api.platform === 'android') {
+    return `
+      <p>Keep your boards the same on this device and your computers by using a folder that a sync app keeps up to date.
+      On Android, <b>Syncthing</b> works well (Syncthing-Fork from F-Droid or Google Play).</p>
+      <ol class="steps">
+        <li>In your sync app, share a folder between this device and your computer, for example <i>Pocket-Canvas Sync</i>.</li>
+        <li>On your computer, choose that folder in Pocket-Canvas: Settings → Sync.</li>
+        <li>Here, tap <b>Choose sync folder…</b> and type where the folder is on this device. Android asks you to allow access to files the first time.</li>
+      </ol>
+      <p class="muted small">Boards from each device are combined, never overwritten. Changes to the same card on two devices: the most recent change wins. Pictures and files sync too.</p>
+      <button class="primary-btn" data-sync="choose">Choose sync folder…</button>`;
+  }
   if (!st.enabled) {
     return `
       <p>Keep your boards the same on all your computers by saving them in a folder that a sync service keeps up to date, such as
@@ -65,11 +81,11 @@ function syncPane(s, st) {
   return `
     <div class="sync-banner ${st.ok ? 'ok' : 'bad'}">${st.ok ? '✓ Sync is on' : '⚠ ' + esc(st.error || 'Sync has a problem')}</div>
     <div class="kv"><span>Folder</span><span class="path">${esc(st.folder)}</span></div>
-    <div class="kv"><span>This computer</span><span>${esc(s.deviceName)}${st.lastWrite ? ` <span class="muted">· saved ${esc(timeAgo(st.lastWrite))}</span>` : ''}</span></div>
-    <div class="kv"><span>Other computers</span><ul class="devices">${devices}</ul></div>
+    <div class="kv"><span>${api.platform === 'android' ? 'This device' : 'This computer'}</span><span>${esc(s.deviceName)}${st.lastWrite ? ` <span class="muted">· saved ${esc(timeAgo(st.lastWrite))}</span>` : ''}</span></div>
+    <div class="kv"><span>Other devices</span><ul class="devices">${devices}</ul></div>
     <div class="btn-row">
       <button class="ghost-btn" data-sync="now">Sync now</button>
-      <button class="ghost-btn" data-sync="open">Open folder</button>
+      ${api.platform === 'android' ? '' : '<button class="ghost-btn" data-sync="open">Open folder</button>'}
       <button class="ghost-btn" data-sync="choose">Change folder…</button>
       <button class="ghost-btn danger" data-sync="off">Stop syncing</button>
     </div>

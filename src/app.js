@@ -224,22 +224,39 @@ const ALLOWED = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'S', 'STRIKE', 'BR', 'P'
 function sanitize(html) {
   const doc = new DOMParser().parseFromString(`<div>${html || ''}</div>`, 'text/html');
   const root = doc.body.firstElementChild;
-  (function walk(node) {
+  // Keep a link's web address and a span's text styles (font, size, colour, bold…); drop everything else.
+  function walkOne(ch) {
+    const style = ch.tagName === 'SPAN' && ch.getAttribute('style') ? cleanStyle(ch.style) : '';
+    for (const a of [...ch.attributes]) {
+      if (!(ch.tagName === 'A' && a.name === 'href' && /^https?:/i.test(a.value))) ch.removeAttribute(a.name);
+    }
+    if (style) ch.setAttribute('style', style);
+    walk(ch);
+  }
+  function walk(node) {
     for (const ch of [...node.childNodes]) {
       if (ch.nodeType === 1) {
         if (['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED'].includes(ch.tagName)) { ch.remove(); continue; }
+        if (ch.tagName === 'FONT') {
+          // old-style <font color face> from pasted text becomes a styled <span>
+          const span = doc.createElement('span');
+          if (ch.getAttribute('color')) span.style.color = ch.getAttribute('color');
+          if (ch.getAttribute('face')) span.style.fontFamily = ch.getAttribute('face');
+          span.append(...ch.childNodes);
+          ch.replaceWith(span);
+          walkOne(span);
+          continue;
+        }
         if (!ALLOWED.has(ch.tagName)) {
           walk(ch);
           ch.replaceWith(...ch.childNodes);
           continue;
         }
-        for (const a of [...ch.attributes]) {
-          if (!(ch.tagName === 'A' && a.name === 'href' && /^https?:/i.test(a.value))) ch.removeAttribute(a.name);
-        }
-        walk(ch);
+        walkOne(ch);
       } else if (ch.nodeType !== 3) ch.remove();
     }
-  })(root);
+  }
+  walk(root);
   return root.innerHTML;
 }
 const htmlToText = (html) => {
@@ -253,8 +270,10 @@ const htmlToText = (html) => {
 // View (pan / zoom)
 // ======================================================================
 // Every board starts at a fixed top-left corner (0, 0) and grows right and down.
-// You can't scroll further left or up than ORIGIN_PAD screen pixels past that corner.
-const ORIGIN_PAD = 40;
+// The corner sits flush with the window edge: you can't scroll left of it or above it.
+// Cards are kept at least CARD_MARGIN from the corner, so nothing touches the edge.
+const ORIGIN_PAD = 0;
+const CARD_MARGIN = 40;
 const DEFAULT_VIEW = () => ({ x: ORIGIN_PAD, y: ORIGIN_PAD, z: 1 });
 
 function applyView() {
@@ -264,8 +283,6 @@ function applyView() {
     v.x = Math.min(v.x, ORIGIN_PAD);
     v.y = Math.min(v.y, ORIGIN_PAD);
   }
-  const eL = $('#edge-left'), eT = $('#edge-top');
-  if (eL) { eL.style.width = Math.max(0, v.x) + 'px'; eT.style.height = Math.max(0, v.y) + 'px'; }
   world.style.transform = `translate(${v.x}px, ${v.y}px) scale(${v.z})`;
   const g = 24 * v.z;
   viewport.style.backgroundSize = `${g}px ${g}px`;
@@ -303,7 +320,7 @@ function fitContent() {
     x2 = Math.max(x2, c.x + el.offsetWidth); y2 = Math.max(y2, c.y + el.offsetHeight);
   }
   const r = viewport.getBoundingClientRect();
-  const z = clamp(Math.min((r.width - ORIGIN_PAD * 2) / x2, (r.height - ORIGIN_PAD * 2) / y2), 0.1, 1);
+  const z = clamp(Math.min((r.width - CARD_MARGIN) / x2, (r.height - CARD_MARGIN) / y2), 0.1, 1);
   b.view = { z, x: ORIGIN_PAD, y: ORIGIN_PAD };
   applyView(); drawLinks(); scheduleSave();
 }
@@ -314,7 +331,7 @@ function normaliseOrigin(b) {
   if (!top.length) return false;
   const minX = Math.min(...top.map((c) => c.x || 0)), minY = Math.min(...top.map((c) => c.y || 0));
   if (minX >= 0 && minY >= 0) return false;
-  const dx = minX < 0 ? 40 - minX : 0, dy = minY < 0 ? 40 - minY : 0;
+  const dx = minX < 0 ? CARD_MARGIN - minX : 0, dy = minY < 0 ? CARD_MARGIN - minY : 0;
   for (const c of top) { c.x = Math.round((c.x || 0) + dx); c.y = Math.round((c.y || 0) + dy); }
   if (b.view) { b.view.x -= dx * b.view.z; b.view.y -= dy * b.view.z; }
   return true;
@@ -496,6 +513,7 @@ function buildCard(c, b) {
     r.className = 'resize';
     el.appendChild(r);
   }
+  applyCardTextStyle(el, c);
   return el;
 }
 
@@ -521,7 +539,7 @@ function fmtSize(n) {
 function refreshSelection() {
   const del = $('#delete-btn'); if (del) del.disabled = !selected.size && !selectedLink;
   $$('.card', cardsEl).forEach((el) => el.classList.toggle('selected', selected.has(el.dataset.id)));
-  $$('path.link', linksG).forEach((p) => p.classList.toggle('selected', p.dataset.id === selectedLink));
+  drawLinks(); // redraws the selected line's end handles and the line style bar
 }
 function selectOnly(id) { selected.clear(); if (id) selected.add(id); selectedLink = null; refreshSelection(); }
 function clearSelection() { selected.clear(); selectedLink = null; refreshSelection(); }
@@ -538,39 +556,7 @@ function edgePoint(r, tx, ty) {
   const t = Math.min((r.w / 2 + 6) / Math.abs(dx || 1e-9), (r.h / 2 + 6) / Math.abs(dy || 1e-9));
   return { x: cx + dx * Math.min(t, 1), y: cy + dy * Math.min(t, 1) };
 }
-function linkPath(ra, rb) {
-  const ca = { x: ra.x + ra.w / 2, y: ra.y + ra.h / 2 }, cb = { x: rb.x + rb.w / 2, y: rb.y + rb.h / 2 };
-  const a = edgePoint(ra, cb.x, cb.y), b = edgePoint(rb, ca.x, ca.y);
-  // a gentle curve looks more hand-drawn than a ruler line
-  const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
-  const nx = -(b.y - a.y) * 0.08, ny = (b.x - a.x) * 0.08;
-  return `M${a.x},${a.y} Q${mx + nx},${my + ny} ${b.x},${b.y}`;
-}
-function drawLinks() {
-  if (!store) return;
-  const b = B();
-  let html = '';
-  for (const l of b.links) {
-    const ea = cardEl(l.from), eb = cardEl(l.to);
-    if (!ea || !eb) continue;
-    const d = linkPath(worldRect(ea), worldRect(eb));
-    const col = l.color ? ` style="stroke:${esc(l.color)}"` : '';
-    html += `<path class="hit" data-id="${l.id}" d="${d}"/><path class="link ${l.id === selectedLink ? 'selected' : ''}" data-id="${l.id}" d="${d}"${col} ${l.arrow === false ? '' : 'marker-end="url(#arrow)"'}/>`;
-  }
-  linksG.innerHTML = html;
-}
-let ghostTo = null;
-function drawGhost() {
-  $$('path.ghost', linksG).forEach((p) => p.remove());
-  if (!connectFrom || !ghostTo) return;
-  const ea = cardEl(connectFrom); if (!ea) return;
-  const ra = worldRect(ea);
-  const a = edgePoint(ra, ghostTo.x, ghostTo.y);
-  const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  p.setAttribute('class', 'ghost');
-  p.setAttribute('d', `M${a.x},${a.y} L${ghostTo.x},${ghostTo.y}`);
-  linksG.appendChild(p);
-}
+// Drawing lines lives in lines.js.
 
 // ---------- Sidebar tree & breadcrumbs ----------
 function childBoards(bid) {
@@ -722,7 +708,8 @@ function serialize(ids, b = B()) {
     if (c.type === 'board') addBoardTree(c.boardId);
   };
   ids.forEach(add);
-  out.links = b.links.filter((l) => seen.has(l.from) && seen.has(l.to));
+  // lines whose card ends are all being copied (free ends come along as they are)
+  out.links = b.links.filter((l) => lineCards(l).length && lineCards(l).every((id) => seen.has(id)));
   return JSON.parse(JSON.stringify(out));
 }
 
@@ -763,7 +750,10 @@ function insertPayload(payload, dx, dy, b = B()) {
   });
   // boards directly referenced from inserted cards belong to this board
   p.cards.forEach((c) => { if (c.type === 'board' && store.boards[c.boardId]) store.boards[c.boardId].parentId = b.id; });
-  b.links.push(...p.links);
+  for (const l of p.links) {
+    for (const w of ['fromPt', 'toPt']) if (l[w]) l[w] = { x: l[w].x + dx, y: l[w].y + dy };
+    b.links.push(l);
+  }
   return added;
 }
 
@@ -1126,16 +1116,21 @@ viewport.addEventListener('pointerdown', (e) => {
     if (!sk) stopSketch();
   }
 
+  if (tool === 'connect') { e.preventDefault(); connectDown(e); return; }
+
+  const handle = e.target.closest('circle.lh');
+  if (handle) { e.preventDefault(); startEndDrag(e, handle.dataset.id, handle.dataset.end); return; }
+
   const linkHit = e.target.closest('path.hit, path.link');
   if (linkHit) {
     e.preventDefault();
     selected.clear(); selectedLink = linkHit.dataset.id; refreshSelection();
+    startLineDrag(e, linkHit.dataset.id);
     return;
   }
 
   const el = e.target.closest('.card');
   if (!el) {
-    if (tool === 'connect') { cancelConnect(); return; }
     e.preventDefault();
     viewport.focus({ preventScroll: true });
     startMarquee(e);
@@ -1143,7 +1138,6 @@ viewport.addEventListener('pointerdown', (e) => {
   }
 
   const id = el.dataset.id;
-  if (tool === 'connect') { e.preventDefault(); connectClick(id); return; }
 
   const ed = e.target.closest('.editable');
   if (ed && ed.isContentEditable) return; // already editing — let the caret move
@@ -1332,39 +1326,7 @@ function startDrag(e, id) {
   window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
 }
 
-// ---------- Connect mode ----------
-function toggleConnect() {
-  if (tool === 'connect') { cancelConnect(); return; }
-  blurEditing();
-  tool = 'connect'; connectFrom = null;
-  viewport.classList.add('connecting');
-  $('#connect-hint').hidden = false;
-  $$('.tool[data-tool="line"]').forEach((x) => x.classList.add('active'));
-  if (selected.size === 1) { connectFrom = [...selected][0]; cardEl(connectFrom)?.classList.add('connect-from'); }
-}
-function cancelConnect() {
-  tool = null; connectFrom = null; ghostTo = null;
-  viewport.classList.remove('connecting');
-  $('#connect-hint').hidden = true;
-  $$('.tool.active').forEach((x) => x.classList.remove('active'));
-  $$('.connect-from').forEach((x) => x.classList.remove('connect-from'));
-  drawGhost();
-}
-function connectClick(id) {
-  if (!connectFrom) { connectFrom = id; cardEl(id)?.classList.add('connect-from'); return; }
-  if (id === connectFrom) return;
-  const b = B();
-  if (!b.links.some((l) => (l.from === connectFrom && l.to === id) || (l.from === id && l.to === connectFrom))) {
-    checkpoint();
-    b.links.push({ id: uid(), from: connectFrom, to: id });
-    scheduleSave();
-  }
-  cancelConnect();
-  drawLinks();
-}
-viewport.addEventListener('pointermove', (e) => {
-  if (tool === 'connect' && connectFrom) { ghostTo = toWorld(e.clientX, e.clientY); drawGhost(); }
-});
+// Line tool (connect mode) lives in lines.js.
 
 // ---------- Wheel: scroll to pan, Ctrl+scroll to zoom ----------
 viewport.addEventListener('wheel', (e) => {
@@ -1576,13 +1538,7 @@ viewport.addEventListener('contextmenu', (e) => {
   if (linkHit) {
     const l = b.links.find((x) => x.id === linkHit.dataset.id);
     selectedLink = l.id; selected.clear(); refreshSelection();
-    showMenu(e.clientX, e.clientY, [
-      { colors: (col) => { checkpoint(); l.color = col; drawLinks(); scheduleSave(); }, current: l.color || null },
-      { label: l.arrow === false ? 'Show arrow' : 'Hide arrow', run: () => { checkpoint(); l.arrow = l.arrow === false; drawLinks(); scheduleSave(); } },
-      { label: 'Reverse direction', run: () => { checkpoint(); [l.from, l.to] = [l.to, l.from]; drawLinks(); scheduleSave(); } },
-      '-',
-      { label: 'Delete line', hint: 'Del', danger: true, run: deleteSelection }
-    ]);
+    showMenu(e.clientX, e.clientY, lineMenuItems(l));
     return;
   }
   const el = e.target.closest('.card');
@@ -2000,6 +1956,7 @@ function migrate(data) {
     normaliseOrigin(b);
     b.order = b.order.filter((id) => b.cards[id]);
     for (const id of Object.keys(b.cards)) if (!b.order.includes(id)) b.order.push(id);
+    b.links = b.links.filter((l) => lineValid(l, b));
   }
   return data;
 }

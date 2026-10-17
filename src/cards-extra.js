@@ -22,6 +22,20 @@ async function cardAction(act, c, el, e) {
       startEditOf(c.id, `[data-field="cell:0:${tableCols(c) - 1}"]`);
       break;
     }
+    case 'del-row':
+    case 'del-col': {
+      const t = tableTarget(c);
+      if (act === 'del-row') {
+        if (c.rows.length <= 1) { toast('A table needs at least one row'); return; }
+        checkpoint(); c.rows.splice(t.r, 1);
+      } else {
+        if (tableCols(c) <= 1) { toast('A table needs at least one column'); return; }
+        checkpoint(); c.rows.forEach((row) => row.splice(t.k, 1));
+      }
+      lastTableCell = null;
+      rerenderCard(c.id); scheduleSave();
+      break;
+    }
     case 'pick-image': {
       const files = await api.pickFiles('image-one');
       if (!files[0]) return;
@@ -43,12 +57,42 @@ async function cardAction(act, c, el, e) {
 // ======================================================================
 const tableCols = (c) => Math.max(1, ...c.rows.map((r) => r.length));
 
+// The cell you last clicked in, so "− Row" / "− Column" know which one to remove.
+// With no cell chosen they remove the last row / column.
+let lastTableCell = null;
+document.addEventListener('focusin', (e) => {
+  const f = e.target.closest && e.target.closest('[data-field^="cell:"]');
+  const card = f && f.closest('.card');
+  if (!f || !card) return;
+  const [, r, k] = f.dataset.field.split(':').map(Number);
+  lastTableCell = { id: card.dataset.id, r, k };
+});
+function tableTarget(c) {
+  const t = lastTableCell && lastTableCell.id === c.id ? lastTableCell : null;
+  const cols = tableCols(c);
+  return { r: t ? Math.min(t.r, c.rows.length - 1) : c.rows.length - 1, k: t ? Math.min(t.k, cols - 1) : cols - 1 };
+}
+// Shade the row or column a delete button will remove while the pointer is over it.
+function tableHint(btn, on) {
+  const cardNode = btn.closest('.card'); if (!cardNode) return;
+  const c = B().cards[cardNode.dataset.id]; if (!c) return;
+  $$('.tbl td.del-hint', cardNode).forEach((td) => td.classList.remove('del-hint'));
+  if (!on) return;
+  const t = tableTarget(c);
+  const sel = btn.dataset.act === 'del-row' ? `td[data-r="${t.r}"]` : `td[data-c="${t.k}"]`;
+  $$(`.tbl ${sel}`, cardNode).forEach((td) => td.classList.add('del-hint'));
+}
+document.addEventListener('mouseover', (e) => { const b = e.target.closest && e.target.closest('.tbl-btn.del'); if (b) tableHint(b, true); });
+document.addEventListener('mouseout', (e) => { const b = e.target.closest && e.target.closest('.tbl-btn.del'); if (b) tableHint(b, false); });
+
 function buildTableHtml(c) {
   const cols = tableCols(c);
   const rows = c.rows.map((r, ri) => `<tr>${Array.from({ length: cols }, (_, ci) =>
     `<td data-r="${ri}" data-c="${ci}">${editable(`cell:${ri}:${ci}`, r[ci] || '', ri === 0 && c.header ? `Column ${ci + 1}` : '')}</td>`).join('')}</tr>`).join('');
   return `<div class="tbl-wrap"><table class="tbl ${c.header ? 'has-head' : ''}"><tbody>${rows}</tbody></table></div>
-    <div class="tbl-tools"><button class="tbl-btn" data-act="add-row">+ Row</button><button class="tbl-btn" data-act="add-col">+ Column</button></div>`;
+    <div class="tbl-tools"><button class="tbl-btn" data-act="add-row">+ Row</button><button class="tbl-btn" data-act="add-col">+ Column</button>
+      <span class="tbl-sep"></span>
+      <button class="tbl-btn del" data-act="del-row" title="Delete the row of the cell you last clicked (or the last row)">− Row</button><button class="tbl-btn del" data-act="del-col" title="Delete the column of the cell you last clicked (or the last column)">− Column</button></div>`;
 }
 
 // Tab / Shift+Tab / Enter move between cells. Returns true if the key was handled.
@@ -427,6 +471,16 @@ function boardIconImg(b) {
   return `<img src="board-icons/${encodeURIComponent(boardIconInfo(b).file)}" alt="" draggable="false">`;
 }
 
+// Board icon background colours: 17 hues, each in a light, middle and deep shade.
+const BOARD_ICON_COLOURS = [
+  ['#f19a93', '#d0453b', '#8f2a23'], ['#f2a77f', '#e0673a', '#9c4220'], ['#f3c97e', '#e8a33d', '#a8701f'],
+  ['#ece17a', '#d9bf2b', '#8f7c14'], ['#bfdc7c', '#8fbc3a', '#5a7a22'], ['#94d3a6', '#5bb276', '#2f7346'],
+  ['#8ccfc9', '#38a3a5', '#1f6a6b'], ['#8fd5ec', '#2fa9d6', '#1a6c8c'], ['#9bbcf0', '#3a7be0', '#22509c'],
+  ['#a9a8ee', '#5a5bd1', '#353694'], ['#bdb2ee', '#6a5fd6', '#43389a'], ['#d3a6e6', '#9d4ec4', '#64287f'],
+  ['#ecaad3', '#c4579f', '#85305f'], ['#f3a3b5', '#db4f74', '#93283f'], ['#d1b394', '#9a6b44', '#5e3e24'],
+  ['#c9c2b8', '#8a7f70', '#57534e'], ['#e4e4e4', '#9a9a9a', '#2f2f2f']
+];
+
 function openBoardIcon(boardId) {
   const b = store.boards[boardId];
   if (!b) return;
@@ -441,7 +495,14 @@ function openBoardIcon(boardId) {
           <div class="muted small">Pick an icon and a colour. They show on the board’s card and in the sidebar.</div></div>
       </div>
       <h3>Colour</h3>
-      <div class="ip-colours">${COLORS.filter(Boolean).map((col) => `<button class="ip-col ${col === b.color ? 'on' : ''}" data-col="${col}" style="--sw:${col}" title="${col}"></button>`).join('')}</div>
+      <div class="ip-colours grid">${[0, 1, 2].map((shade) => BOARD_ICON_COLOURS.map((h) => h[shade]).map((col) =>
+        `<button class="ip-col ${b.color && col === b.color.toLowerCase() ? 'on' : ''}" data-col="${col}" style="--sw:${col}" title="${esc(colourName(col))} ${col}"></button>`).join('')).join('')}</div>
+      <div class="ip-custom">
+        <span class="muted small">Your own colour</span>
+        <input type="color" class="ip-picker" value="${safeColor(normaliseHex(b.color || '') || '#8a7f70')}" title="Pick any colour">
+        <input type="text" class="ip-hex" maxlength="7" spellcheck="false" value="${esc(b.color || '')}" placeholder="#3a7be0" aria-label="Hex colour code">
+        <span class="muted small ip-name">${b.color ? esc(colourName(b.color)) : ''}</span>
+      </div>
       <h3>Icon</h3>
       <div class="ip-grid">${BOARD_ICONS.map((i) => `<button class="ip-ico ${i.id === cur ? 'on' : ''} ${i.tint ? '' : 'full'}" data-icon="${esc(i.id)}" title="${esc(i.name)}" style="--c:${safeColor(b.color || '#8a7f70')}"><img src="board-icons/${encodeURIComponent(i.file)}" alt=""><span>${esc(i.name)}</span></button>`).join('')}</div>
       <div class="btn-row">
@@ -453,15 +514,24 @@ function openBoardIcon(boardId) {
     checkpoint(); fn(); scheduleSave();
     renderBoard(); renderTree(); draw();
   };
+  const setColour = (hex) => apply(() => {
+    b.color = hex;
+    for (const pb of Object.values(store.boards)) for (const c of Object.values(pb.cards)) if (c.type === 'board' && c.boardId === b.id) c.color = b.color;
+  });
+  body.addEventListener('change', (e) => {
+    if (e.target.classList.contains('ip-picker')) setColour(e.target.value);
+    if (e.target.classList.contains('ip-hex')) {
+      const hex = normaliseHex(e.target.value);
+      if (hex) setColour(hex); else { e.target.classList.add('bad'); toast('That isn’t a colour code — try something like #3a7be0'); }
+    }
+  });
+  body.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.classList.contains('ip-hex')) { e.preventDefault(); e.target.dispatchEvent(new Event('change', { bubbles: true })); } });
   body.addEventListener('click', async (e) => {
     const ic = e.target.closest('[data-icon]');
     const col = e.target.closest('[data-col]');
     const act = e.target.closest('[data-ip]');
     if (ic) apply(() => { b.icon = ic.dataset.icon; delete b.iconAsset; });
-    if (col) apply(() => {
-      b.color = col.dataset.col;
-      for (const pb of Object.values(store.boards)) for (const c of Object.values(pb.cards)) if (c.type === 'board' && c.boardId === b.id) c.color = b.color;
-    });
+    if (col) setColour(col.dataset.col);
     if (act && act.dataset.ip === 'own') {
       const files = await api.pickFiles('image-one');
       if (files[0]) apply(() => { b.iconAsset = files[0].id; });

@@ -274,7 +274,9 @@
       const order = b.order.filter((id, i, arr) => b.cards[id] && arr.indexOf(id) === i);
       for (const id of Object.keys(b.cards)) if (!order.includes(id)) order.push(id);
       b.order = order;
-      b.links = b.links.filter((l) => b.cards[l.from] && b.cards[l.to] && l.from !== l.to);
+      // each end must be a card on this board or a free point on it
+      const endOk = (l, w) => (l[w] ? !!b.cards[l[w]] : !!(l[w + 'Pt'] && isFinite(l[w + 'Pt'].x) && isFinite(l[w + 'Pt'].y)));
+      b.links = b.links.filter((l) => endOk(l, 'from') && endOk(l, 'to') && !(l.from && l.from === l.to));
     }
   }
 

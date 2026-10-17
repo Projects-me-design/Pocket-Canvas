@@ -143,6 +143,21 @@ const base = { version: 1, root: 'home', ui: {}, templates: {}, deleted: {},
   check('scroll and zoom position are not synced', b.s.boards.home.view.z === 1);
 }
 
+// 12. Free lines (ends not attached to cards) sync, and lines keep their style.
+{
+  const a = new Device(base, 1e6), b = new Device(base, 1e6);
+  a.edit((s) => {
+    s.boards.home.links.push({ id: 'free1', from: null, to: null, fromPt: { x: 10, y: 20 }, toPt: { x: 300, y: 40 }, arrow: 'both', dash: 'dotted' });
+    s.boards.home.links.push({ id: 'half1', from: 'n1', to: null, toPt: { x: 500, y: 500 }, arrow: 'none' });
+    s.boards.home.links.push({ id: 'bad1', from: null, to: null, fromPt: { x: 1, y: 1 } });
+  });
+  b.receive(a);
+  const ids = b.s.boards.home.links.map((l) => l.id).sort().join();
+  check('free-floating lines and half-attached lines sync', ids.includes('free1') && ids.includes('half1'));
+  check('…keeping their arrows and dots', b.s.boards.home.links.find((l) => l.id === 'free1').dash === 'dotted' && b.s.boards.home.links.find((l) => l.id === 'free1').arrow === 'both');
+  check('…but a line with a missing end is dropped', !ids.includes('bad1'));
+}
+
 // 11. Receiving the same thing twice changes nothing.
 {
   const a = new Device(base, 1e6), b = new Device(base, 1e6);

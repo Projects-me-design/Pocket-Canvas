@@ -2,12 +2,13 @@
 
 How Pocket-Canvas is built, how to run and test it, how to change it, and how to ship a release.
 
-Version 1.3.0 · © 2026 project-tech-me · project-tech-me@protonmail.com · MIT licence (logo excluded; see `ASSETS-LICENCE.md`)
+Version 1.4.0 · © 2026 project-tech-me · project-tech-me@protonmail.com · MIT licence (logo excluded; see `ASSETS-LICENCE.md`)
 
 ### Version history
 
 | Version | Main changes | Code to look at |
 |---|---|---|
+| **1.4** | Android app (Capacitor) with folder sync; text formatting; line styles and free-floating lines; − Row / − Column; 51 board-icon colours; board flush with the window; touch gestures | `mobile/api-android.js`, `android/`, `src/mobile.js`, `src/lines.js`, `src/text-format.js`, [ANDROID.md](ANDROID.md) |
 | **1.3** | Recycle bin (30 days, synced); delete buttons; password-protected boards (AES-256-GCM, PBKDF2); automatic backups to a chosen folder; spell checking with suggestions | `src/bin.js`, `src/lock.js`, `lib/backup.js`, spelling in `main.js` |
 | **1.2** | Fixed top-left corner (boards grow right/down); templates load top-left; 42 board icons + own pictures; Colour cards with typed codes and automatic names | `ORIGIN_PAD`/`normaliseOrigin()` in `app.js`, `src/board-icons/`, `src/colour-names.js` |
 | **1.1** | Folder sync; templates; comments; link previews; tables, sketches, audio/video; PDF/PNG export; browser extension | `src/merge.js`, `lib/sync.js`, `lib/clipper.js`, `lib/export.js`, `browser-extension/` |
@@ -121,6 +122,8 @@ pocket-canvas/
 │   ├── colour-names.js     Colour names (normaliseHex, colourName) for Colour cards
 │   ├── board-icons/        Board icon pictures (*.svg) and icons.js, the list of them
 │   ├── app.js              Core: state, rendering, cards, drag/drop, editing, menus, search, history
+│   ├── lines.js            Lines and arrows: drawing, free/attached ends, handles, style bar, line menu
+│   ├── text-format.js      Formatting bar: font, size, bold/italic/underline/strike, colour
 │   ├── modal.js            Dialog helpers: openModal, askText, timeAgo
 │   ├── cards-extra.js      Tables, sketches, audio/video players, picture placeholders, link previews
 │   ├── comments.js         Comment panel and badges
@@ -130,20 +133,28 @@ pocket-canvas/
 │   ├── settings-ui.js      Settings window, sync status label
 │   ├── sync-client.js      Applying changes from other computers; adding web clips
 │   ├── export-ui.js        Export dialog, and "export mode" drawing in the off-screen window
+│   ├── mobile.js           Touch gestures (pan, pinch, press-and-hold); Android ⋮ menu and Back button
 │   ├── start.js            init(): runs last
 │   └── icon.png            Logo used at runtime
 ├── browser-extension/      The web clipper (Manifest V3); see its README
+├── mobile/
+│   └── api-android.js      The Android app's window.api (instead of preload.js), incl. folder sync
+├── android/                Android Studio project (Capacitor), kept in Git; see docs/ANDROID.md
+├── capacitor.config.json   Android app id, name and web folder (build/android-www)
 ├── scripts/
-│   └── build-extension.js  Zips the extension for the stores (no dependencies)
+│   ├── build-extension.js  Zips the extension for the stores (no dependencies)
+│   └── build-android-web.js  Copies src/ + mobile/api-android.js to build/android-www
 ├── tests/
 │   ├── smoke.js            Core features, driving the real app
 │   ├── features.js         1.1 features, driving the real app (sync, export, clipper API…)
 │   ├── merge.test.js       Sync merge engine, plain Node
 │   ├── extension.test.js   Extension in Chromium (Playwright) + app
+│   ├── android-web.test.js Android app screens in a phone-sized Chromium with a pretend phone
+│   ├── wait-ready.js       Waits for the app to finish starting (used by the tests)
 │   └── app-harness.js      Starts the app for extension.test.js
 ├── build/                  Installer icons and original logo artwork
-├── docs/                   USER-GUIDE.md and this file
-├── .github/workflows/build.yml   CI: all tests, then installers + extension zip
+├── docs/                   USER-GUIDE.md, this file, ANDROID.md and RELEASING.md
+├── .github/workflows/build.yml   CI: all tests, then installers, Android APK and extension zip
 ├── package.json            Scripts, metadata and electron-builder config ("build" key)
 ├── FEATURES.md, README.md, LICENSE, ASSETS-LICENCE.md
 ```
@@ -228,7 +239,10 @@ Everything shared is one plain object, `store`:
       "lock": { "v": 1, "salt", "iter", "iv", "ct", "hint" },  // only on password-protected boards (base64)
       "cards":  { "<cardId>": { … } },    // every card on this board, including ones inside columns
       "order":  ["<cardId>", …],          // stacking order (last = on top)
-      "links":  [ { "id": "…", "from": "<cardId>", "to": "<cardId>", "color": null, "arrow": true, "_mt": 0 } ],
+      "links":  [ { "id": "…", "from": "<cardId>" | null, "to": "<cardId>" | null,   // null = a free end…
+                    "fromPt": { "x", "y" }, "toPt": { "x", "y" },                // …at this board position
+                    "arrow": "end" | "start" | "both" | "none", "dash": "solid" | "dashed" | "dotted",
+                    "width": 2 | 3 | 5, "shape": "curve" | "straight", "color": null, "_mt": 0 } ],
       "view":   { "x": 40, "y": 40, "z": 1 },   // pan/zoom for this board; per computer, not synced
       "_mt": 1760512345678                // last change to title/colour/parent/order (sync)
     }
@@ -259,13 +273,14 @@ Every card has:
 | `color` | string \| null | Colour label |
 | `col` | string? | Set when the card is inside a column: the column's card id |
 | `comments` | array? | `[{ id, author, text, at, resolved?, edited? }]` |
+| `textStyle` | object? | Whole-card text style for every type except notes: `{ font, size, bold, italic, underline, strike, color }` (see `cleanTextStyle()`) |
 | `_mt` | number? | Time of last change (set automatically at save; see [Sync](#9-sync)) |
 
 Type-specific fields:
 
 | `type` | Fields |
 |---|---|
-| `note` | `html`: sanitised rich text |
+| `note` | `html`: sanitised rich text. Besides the allowed tags, `<span style>` keeps only `color`, `font-family`, `font-size` (6–120 px), `font-weight`, `font-style` and `text-decoration` (`cleanStyle()` in `text-format.js`) |
 | `heading` | `text` |
 | `todo` | `title`, `items: [{ id, text, done }]` |
 | `link` | `url`, `title`; from the preview: `desc`, `site`, `image` (asset), `icon` (asset) |
@@ -282,7 +297,7 @@ Default fields for each type come from `cardDefaults(type)` in `app.js`.
 
 ### Rules the code relies on
 
-- A card belongs to exactly one board. Lines only join cards on the **same** board.
+- A card belongs to exactly one board. Lines only join cards on the **same** board. Each line end is either a card on that board or a free point (`fromPt`/`toPt`); `lineValid()` (and the same check in `PCSync.merge()`) drops lines with a missing end. Older lines have `arrow: true/false/undefined`; `lineArrow()` reads them as `'end'`/`'none'`.
 - Cards inside a column are still stored in `board.cards` and `board.order`. They have `col` set, the column lists them in `items`, and they are **not** drawn at the top level.
 - A board card's `boardId` points to a board whose `parentId` is the board holding the card. Every board except Home has exactly one board card. `childBoards()` walks cards to build the sidebar tree.
 - Columns can't go inside columns, and a board can't be moved inside itself or its descendants.
@@ -358,7 +373,10 @@ The feature files:
 
 | File | Main functions |
 |---|---|
-| `cards-extra.js` | `cardAction()` (card buttons), `buildTableHtml()`, `tableKey()`, `tableMenuItems()`, `buildSketchHtml()`, `startSketch()`/`stopSketch()`/`startStroke()`, `buildMediaHtml()`, `mountMedia()`, `cleanupMedia()`, `fetchPreview()` |
+| `lines.js` | `drawLinks()`, `lineEnds()`/`linePathD()`, `toggleConnect()`/`connectDown()`/`connectFinish()` (the Line tool), `startLineDrag()`, `startEndDrag()`, `setLineProp()`, `lineMenuItems()`, `updateLineBar()`, `lineValid()`, `lineDefaults()` (kept in `store.ui.line`) |
+| `text-format.js` | `#format-bar` shown on `focusin` of an editable; `applyFormat(kind, value)`: `execCommand` on the selection in notes (sizes via a `<font size=7>` swap), or `card.textStyle` for other cards; `applyCardTextStyle()` (CSS variables, called by `buildCard()`); `cleanStyle()`/`cleanTextStyle()` |
+| `mobile.js` | Touch: one-finger pan on empty board, two-finger pinch zoom, press-and-hold → `contextmenu`. Android only: ⋮ menu, Back button, sidebar closed on phones, save on `pause` |
+| `cards-extra.js` | `cardAction()` (card buttons, incl. `del-row`/`del-col` using `lastTableCell`), `buildTableHtml()`, `tableKey()`, `tableMenuItems()`, `buildSketchHtml()`, `startSketch()`/`stopSketch()`/`startStroke()`, `buildMediaHtml()`, `mountMedia()`, `cleanupMedia()`, `fetchPreview()` |
 | `comments.js` | `openComments()`, `closeComments()`, `refreshComments()` (after each render), `postComment()` |
 | `templates.js` | `BUILTIN_TEMPLATES`, `templateBuilder()`, `useTemplate()`, `saveBoardAsTemplate()`, `openTemplates(mode, pos)` |
 | `settings-ui.js` | `openSettings(tab)`, `renderSettings()`, `updateSyncLabel()` |
@@ -376,7 +394,7 @@ The feature files:
 **Audio/video players survive re-renders:** `mediaEls` keeps one `<audio>`/`<video>` element per card id; `mountMedia()` moves the existing element into the rebuilt card, and `cleanupMedia()` stops players whose cards are no longer in the DOM (other board, deleted).
 
 ### Coordinates and the top-left corner
-Card `x`/`y` are **board coordinates**: `board = (screen − view.x) / view.z`. Board `(0, 0)` is the fixed top-left corner. `applyView()` caps `view.x` and `view.y` at `ORIGIN_PAD` (40 px), so you can never scroll more than 40 px past the corner, and sizes the shaded `#edge-left`/`#edge-top` strips that show it. `fitContent()` always shows from `(0, 0)` to the furthest card, at up to 100% zoom. New boards start at `DEFAULT_VIEW()`; export mode skips the cap. Use `toWorld(clientX, clientY)`. During drags, divide mouse movement by `view.z`. Sketch points are in the sketch's own `vw × vh` space, so they scale with the card.
+Card `x`/`y` are **board coordinates**: `board = (screen − view.x) / view.z`. Board `(0, 0)` is the fixed top-left corner. `applyView()` caps `view.x` and `view.y` at `ORIGIN_PAD` (0 since 1.4), so the corner sits flush with the window edge and you can't scroll past it. Cards keep at least `CARD_MARGIN` (40) from the corner when older boards are moved into range. `fitContent()` always shows from `(0, 0)` to the furthest card, at up to 100% zoom. New boards start at `DEFAULT_VIEW()`; export mode skips the cap. Use `toWorld(clientX, clientY)`. During drags, divide mouse movement by `view.z`. Sketch points are in the sketch's own `vw × vh` space, so they scale with the card.
 
 ### Undo / redo
 History stores **whole-store JSON snapshots** (up to 80).
@@ -395,7 +413,7 @@ The first click selects a card; a second click on an already-selected card makes
 `startSketch(id)` sets `sketchEditing`, shows `#sketch-bar` and adds `.drawing` to the card. In the viewport `pointerdown` handler, events inside that card's `.sketch-wrap` go to `startStroke()`, which records points in sketch coordinates (coalesced events for smoothness, minimum 1.5-unit spacing) and renders strokes as SVG quadratic curves. The eraser removes whole strokes whose segments pass within the eraser radius.
 
 ### Copy, paste, duplicate, templates
-`serialize(ids, board)` gathers cards plus column children, nested boards (recursively) and the lines between them. `insertPayload(payload, dx, dy, board)` gives **every** id a fresh one, offsets positions and re-parents child boards. Duplicate, paste and templates all use this pair. A saved template is just a stored payload.
+`serialize(ids, board)` gathers cards plus column children, nested boards (recursively) and the lines whose card ends are all among them (their free ends come too). `insertPayload(payload, dx, dy, board)` gives **every** id a fresh one, offsets positions and re-parents child boards. Duplicate, paste and templates all use this pair. A saved template is just a stored payload.
 
 ---
 
@@ -579,10 +597,11 @@ Add an entry to `BUILTIN_TEMPLATES` in `templates.js` with `id` (`builtin-…`),
 
 | Command | What it covers | Checks |
 |---|---|---|
-| `npm run test:merge` | Sync merge engine: concurrent adds, same-card edits, deletes vs later edits, moves between boards, deleted boards, two Home boards, columns, lines, templates, views, idempotence | 17 |
+| `npm run test:merge` | Sync merge engine: concurrent adds, same-card edits, deletes vs later edits, moves between boards, deleted boards, two Home boards, columns, lines (incl. free lines and styles), templates, views, idempotence | 20 |
 | `npm test` | Core board features with real mouse/keyboard input | 23 |
-| `npm run test:features` | Sync with a simulated second computer (incoming, outgoing, assets, status), tables, sketch drawing/eraser/undo, audio playback and Stop, comments, link previews against a local test website, templates (built-in and saved), picture placeholders, PNG and PDF export, the clipper API (security, text, screenshot, media, board choice), the top-left corner (scroll limits, card limits, older boards, fit, templates at top-left), board icons (all files load, picker, sidebar, sync) Colour cards (typed and picked codes, automatic names, your own names kept, dragging), deleting and the Recycle bin (button, restore with lines, boards, 30-day purge, sync), password-protected boards (encryption on disk and in sync, wrong/right password, nested boards, re-lock on leaving, encrypted bin items, change password), backups (automatic, now, assets, encryption kept, pruning, restore, safety backup) and spelling (defaults, on/off, languages, right-click menu) | 125 |
+| `npm run test:features` | Sync with a simulated second computer (incoming, outgoing, assets, status), tables, sketch drawing/eraser/undo, audio playback and Stop, comments, link previews against a local test website, templates (built-in and saved), picture placeholders, PNG and PDF export, the clipper API (security, text, screenshot, media, board choice), the top-left corner (scroll limits, card limits, older boards, fit, templates at top-left), board icons (all files load, picker, sidebar, sync) Colour cards (typed and picked codes, automatic names, your own names kept, dragging), deleting and the Recycle bin (button, restore with lines, boards, 30-day purge, sync), password-protected boards (encryption on disk and in sync, wrong/right password, nested boards, re-lock on leaving, encrypted bin items, change password), backups (automatic, now, assets, encryption kept, pruning, restore, safety backup) and spelling (defaults, on/off, languages, right-click menu); 1.4: board flush with the window, table − Row/− Column (highlight, cell chosen, last, minimum, undo), 51 icon colours and typed codes, lines (free ends, arrows both/none, dotted/dashed/thick/straight, remembered style, drag line, drag end onto a card, attached end follows, drag-to-draw, copy, menu, detach), text formatting (bar, bold/underline/strike/size/colour/font on the selection only, whole note, sanitising, whole-card styles on a heading, Ctrl+B, clear) | 169 |
 | `npm run test:extension` | The extension loaded into Chromium: manifest accepted, pairing, board list, popup, right-click saves, a web page blocked from the API, disconnect | 13 |
+| `npm run test:android` | The Android app's screens (`build/android-www`) in a phone-sized touch Chromium with a pretend phone: start-up, saving to app storage, assets, ⋮ menu, Android settings, sync on/off, writing to and reading from the sync folder (cards and pictures), link previews, sharing, one-finger pan, pinch zoom, press-and-hold menu, Back button, phone layout | 31 |
 
 Each test runs the **real app** with a throw-away data folder and exits non-zero on failure.
 
@@ -606,6 +625,7 @@ Each test runs the **real app** with a throw-away data folder and exits non-zero
 - [ ] Set backups to a USB stick; unplug it; check the warning; plug in; Back up now; restore an older backup
 - [ ] Right-click a misspelt word: suggestions and Add to dictionary work (Windows, macOS, Linux)
 - [ ] Install the built installer on a clean machine; check the icon, shortcuts and About box
+- [ ] Install the APK on a real phone; sync with a computer through Syncthing ([ANDROID.md](ANDROID.md) step 3); pinch, pan, press and hold, Back; add a photo from the phone
 
 ---
 
@@ -635,6 +655,9 @@ Code signing switches on by itself. When the signing secrets are present, the wo
 
 - **Test build:** GitHub → **Actions** → **Build installers** → **Run workflow**, then download from the run page.
 - **Release:** bump `package.json`, commit, then `git tag v1.4.0 && git push origin v1.4.0`. The installers and the extension zip are attached to a GitHub Release for that tag. See [RELEASING.md, part 1](RELEASING.md#part-1--releasing-with-github-actions) for every step, and for what to do when a step fails.
+
+### The Android app
+`npm run android:sync` rebuilds `build/android-www` from `src/` and copies it into `android/`; `npm run android:open` opens Android Studio. CI builds the APK in the **android** job. Everything about it, including signing with your own key, is in [ANDROID.md](ANDROID.md). Anything you add to `window.api` in `preload.js` needs a matching entry in `mobile/api-android.js` (or a sensible "desktop only" answer), and `npm run test:android` should still pass.
 
 ### Publishing the extension
 See `browser-extension/README.md` for each store's submission page, the permission justifications and the privacy answers.
@@ -688,6 +711,7 @@ People's boards live in `pocket-canvas-data.json` and in sync folders for years,
 | Media | Local files; direct media links downloaded | Embedded YouTube/Vimeo players (would need CSP and privacy review) |
 | Extension | Chromium browsers and Firefox | Safari (wrap with `xcrun safari-web-extension-converter`) |
 | Accessibility | Mouse-first; keyboard covers the basics | Focus navigation between cards, ARIA labels, screen-reader testing |
+| Android | Sync folder by typed path with "All files access" (fine for sideloading, not allowed on Google Play for this kind of app); no PNG/PDF export or folder backups | Android folder picker (Storage Access Framework) via a small plugin; export via an off-screen WebView; iOS with the same Capacitor set-up |
 
 ---
 

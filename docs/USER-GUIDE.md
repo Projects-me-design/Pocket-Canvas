@@ -4,7 +4,33 @@ Welcome to Pocket-Canvas: a place to lay out your ideas, plans, mood boards and 
 
 This guide is for anyone using the app. You don't need any technical knowledge.
 
-Version 1.3.0 · © 2026 project-tech-me · project-tech-me@protonmail.com
+### What's new
+
+**Version 1.4**
+- **Pocket-Canvas for Android**, which syncs with your computers ([section 25](#25-the-android-app))
+- **Text formatting**: font, size, bold, italic, underline, strikethrough and colour ([section 4](#text-formatting))
+- **Line styles**: no arrows, arrows at both ends, dashed or dotted, thicker, straight; and **lines that float freely** on the board ([section 10](#10-drawing-lines-and-arrows))
+- **− Row** and **− Column** buttons on tables
+- **51 colours** for board icons, or type any colour you like
+- The board now starts right at the edge of the window, without a gap
+- Touch screens: drag to move around, pinch to zoom, press and hold for the menu
+
+**Version 1.3**
+- **Recycle bin:** deleted cards and boards can be restored for 30 days ([section 6](#6-deleting-and-the-recycle-bin))
+- Easier deleting: a bin button on selected cards, in the top bar and in the sidebar
+- **Password-protected boards**, properly encrypted ([section 8](#8-password-protected-boards))
+- **Automatic backups** to a folder you choose, with one-click restore ([section 19](#19-backing-up-and-moving-to-another-computer))
+- **Spell checking** with right-click suggestions ([section 15](#15-spelling))
+
+**Version 1.2**
+- Every board has a fixed **top-left corner** and grows right and down; templates load at the top-left
+- **42 board icons** to choose from (or use your own picture)
+- **Colour cards:** type or pick any colour, and its name fills in automatically
+
+**Version 1.1**
+- Sync between computers, templates, comments, link previews, tables, audio and video, sketches, PDF/picture export and the browser extension
+
+Version 1.4.0 · © 2026 project-tech-me · project-tech-me@protonmail.com
 
 ---
 
@@ -19,7 +45,7 @@ Version 1.3.0 · © 2026 project-tech-me · project-tech-me@protonmail.com
 7. [Boards inside boards](#7-boards-inside-boards)
 8. [Password-protected boards](#8-password-protected-boards)
 9. [Columns](#9-columns)
-10. [Drawing lines between cards](#10-drawing-lines-between-cards)
+10. [Drawing lines and arrows](#10-drawing-lines-and-arrows)
 11. [Templates](#11-templates)
 12. [Comments](#12-comments)
 13. [Getting around a board](#13-getting-around-a-board)
@@ -34,6 +60,7 @@ Version 1.3.0 · © 2026 project-tech-me · project-tech-me@protonmail.com
 22. [Keyboard shortcuts](#22-keyboard-shortcuts)
 23. [Troubleshooting and questions](#23-troubleshooting-and-questions)
 24. [Uninstalling](#24-uninstalling)
+25. [The Android app](#25-the-android-app)
 
 ---
 
@@ -41,7 +68,7 @@ Version 1.3.0 · © 2026 project-tech-me · project-tech-me@protonmail.com
 
 ### Windows
 
-1. Double-click the installer, for example **Pocket-Canvas Setup 1.3.0.exe**.
+1. Double-click the installer, for example **Pocket-Canvas Setup 1.4.0.exe**.
 2. If Windows shows **"Windows protected your PC"**, click **More info**, then **Run anyway**. This message appears because the app is new and isn't yet registered with Microsoft. It doesn't mean anything is wrong.
 3. Choose whether to install for just you or everyone, pick a folder (or keep the suggested one) and click **Install**.
 4. Open Pocket-Canvas from the desktop shortcut or the Start menu.
@@ -52,14 +79,14 @@ Installing a new version over an old one keeps all your boards.
 
 **AppImage (works on most Linux systems, no installing needed)**
 
-1. Right-click **Pocket-Canvas-1.3.0.AppImage** → **Properties** → **Permissions**, and tick **Allow executing file as program**.
+1. Right-click **Pocket-Canvas-1.4.0.AppImage** → **Properties** → **Permissions**, and tick **Allow executing file as program**.
 2. Double-click it to start.
 3. On Ubuntu 22.04 or newer, if nothing happens, open a Terminal and run `sudo apt install libfuse2`, then try again.
 
 **.deb package (Ubuntu, Debian, Linux Mint and similar)**
 
-1. Double-click **pocket-canvas_1.3.0_amd64.deb** to open it in your Software app, then click **Install**.
-   Or, in a Terminal in the same folder, run: `sudo apt install ./pocket-canvas_1.3.0_amd64.deb`
+1. Double-click **pocket-canvas_1.4.0_amd64.deb** to open it in your Software app, then click **Install**.
+   Or, in a Terminal in the same folder, run: `sudo apt install ./pocket-canvas_1.4.0_amd64.deb`
 2. Find **Pocket-Canvas** in your applications menu.
 
 ### macOS
@@ -82,12 +109,12 @@ Installing a new version over an old one keeps all your boards.
 │   ▸ Recipes  │ Board│                                        │           │
 │              │ …    │                                        │           │
 │[Dark/light]  │      │                                        │           │
-│[Shortcuts][⚙]│      │                                        │           │
+│[?] [🗑] [⚙]   │      │                                        │           │
 └──────────────┴──────┴────────────────────────────────────────┴───────────┘
    sidebar      toolbar
 ```
 
-- **Sidebar (left):** every board you have, plus search. Click a board to open it. Click the small ▸ / ▾ arrows to show or hide the boards inside it. At the bottom: dark/light mode, the shortcuts list, and **⚙ Settings**.
+- **Sidebar (left):** every board you have, plus search. Click a board to open it. Click the small ▸ / ▾ arrows to show or hide the boards inside it. Right-click a board in the sidebar to rename it, change its icon, lock it or delete it. At the bottom: **Dark / light**, **?** (keyboard shortcuts), the **bin** button (the Recycle bin, with a count) and **⚙ Settings**.
 - **Toolbar:** the kinds of card you can add: Note, Link, To-do, Line, Board, Column, Table, Sketch, Heading, Image, Media (audio and video), File and Colour.
 - **Top bar:** where you are (for example *Home / Holiday plans*); click an earlier name to go back up. On the right: sync status (if you use sync), whether your work is saved, undo/redo, and zoom.
 - **The board:** your working space. It starts at a fixed **top-left corner**, shown by a shaded edge along the top and left, and carries on as far as you like to the **right and down**.
@@ -118,13 +145,28 @@ There are several ways to add a card. Use whichever feels natural.
 ### Note
 For writing anything. Click once to select the note, then click again to start typing.
 
-- **Bold**, *italic* and underline: Ctrl+B, Ctrl+I, Ctrl+U
+- **Bold**, *italic* and underline: Ctrl+B, Ctrl+I, Ctrl+U (more in [Text formatting](#text-formatting) below)
 - Shortcuts at the start of a line:
   - type `- ` (dash, space) for a bullet list
   - type `1. ` for a numbered list
   - type `# ` for a heading, `## ` for a smaller heading
   - type `> ` for a quote
 - Press **Esc**, or click anywhere outside the note, when you've finished.
+
+### Text formatting
+While you type in any card, a small **formatting bar** appears just above it:
+
+| Button | What it does |
+|---|---|
+| **Font ▾** | Default, Sans serif, Serif, Monospace, Handwriting, Rounded or Poster |
+| **Size ▾** | From 10 to 64. *Default* puts it back to normal. |
+| **B** *I* <u>U</u> ~~S~~ | Bold, italic, underline, strikethrough. Click again to turn off. |
+| **A** | Text colour: 16 colours, or *Default colour* |
+| **⌫Aa** | Clear formatting |
+
+- **In a note**, select the words you want to change first. With nothing selected, the whole note changes.
+- **In other cards** (headings, to-do lists, tables, columns and so on), the change applies to all the card's text.
+- Keyboard: **Ctrl+B**, **Ctrl+I**, **Ctrl+U**, and **Ctrl+Shift+X** for strikethrough.
 
 ### To-do list
 - Give the list a title, then press **Enter** to move to the first task.
@@ -167,6 +209,7 @@ For writing anything. Click once to select the note, then click again to start t
 - **Tab** moves to the next cell, **Shift+Tab** to the previous one, and **Enter** to the cell below. Moving past the last row adds a new row for you.
 - **Shift+Enter** starts a new line inside a cell.
 - **+ Row** and **+ Column** appear under the table when you point at it.
+- **− Row** and **− Column** delete a row or column. Click a cell in the one you want to remove first; with no cell clicked, they remove the last one. Pointing at the button shades in red what will be deleted. A table always keeps at least one row and one column, and **Ctrl+Z** brings a deleted row or column back.
 - **Right-click a cell** to insert a row above or below, insert a column left or right, delete a row or column, or turn the heading row on or off.
 - To edit a cell later: click the table once to select it, then click the cell.
 
@@ -257,7 +300,7 @@ Boards help you keep things organised, like folders, but visual. A **Holiday** b
 - **Open a board:** double-click its card, or click its coloured icon, or click it in the sidebar.
 - **Go back up:** click an earlier name in the top bar, or press **Alt+←**.
 - **Rename a board:** click its name on the card, or click the current board's name in the top bar.
-- **Change a board's icon and colour:** right-click its card › **Change icon…** (or, inside the board, right-click an empty spot › **Change this board's icon…**). Pick from 42 icons, such as Home, Star, Idea, Calendar, Travel or Music, and 11 colours. The icon shows on the board's card and in the sidebar.
+- **Change a board's icon and colour:** right-click its card › **Change icon…** (or, inside the board, right-click an empty spot › **Change this board's icon…**). Pick from 42 icons, such as Home, Star, Idea, Calendar, Travel or Music, and **51 background colours**: 17 colours, each in a light, middle and deep shade. For any other colour, use **Your own colour**: click the colour box to pick one, or type a colour code such as `#0F8A5F` and press **Enter** (its name appears next to it). The icon shows on the board's card and in the sidebar.
 - **Use your own picture as a board's icon:** in the same window, click **Use my own picture…**. **Remove my picture** goes back to the icon.
 
 ### Moving cards into another board
@@ -317,22 +360,42 @@ Columns keep cards in a neat list, which is handy for lists of ideas, stages of 
 
 ---
 
-## 10. Drawing lines between cards
+## 10. Drawing lines and arrows
 
-Lines show how ideas connect, such as steps in a process or a mind map.
+Lines show how ideas connect, such as steps in a process or a mind map. They can also be used on their own: an arrow pointing at something, a divider, or an underline.
 
+### Drawing a line
 1. Click the **Line** tool (or press **L**).
-2. Click the first card, then the second. A line with an arrow joins them.
+2. Click where the line starts, then where it ends. Each end can be **on a card** (the line is attached to it) or **anywhere on the board** (that end is free).
+   You can also press, drag and let go.
 
-Or right-click a card → **Draw line from here**, then click the other card.
+Or right-click a card → **Draw line from here**, then click where it should end. Press **Esc** to stop drawing a line part-way.
 
-Lines follow the cards when you move them. **Right-click a line** to:
-- change its colour
-- hide or show the arrowhead
-- reverse its direction
-- delete it
+### Choosing the style
+While you're drawing, and whenever a line is selected, a **line style bar** appears at the top of the board:
 
-Press **Esc** to stop drawing a line part-way.
+| Group | Choices |
+|---|---|
+| Arrows | none · at the end · at the start · at both ends |
+| Pattern | solid · dashed · dotted |
+| Thickness | thin · medium · thick |
+| Shape | curved · straight |
+
+Whatever you pick is also used for your next new line. The bar also has **Delete**.
+
+### Moving lines and their ends
+- **Ends on a card** follow the card when you move it.
+- Click a line to select it. A round **handle** appears on each end.
+  - Drag a handle onto a card to attach it (the card lights up).
+  - Drag a handle anywhere else to free that end.
+- Drag the middle of a line to move it. Its free ends move; ends on cards stay put.
+
+### Right-clicking a line
+You get the same choices as the style bar, plus:
+- **colour**
+- **Reverse direction**
+- **Detach from cards**: frees both ends where they are
+- **Delete line**
 
 ---
 
@@ -393,6 +456,8 @@ Leave notes to yourself, or questions and answers, on any card without changing 
 | Back to 100% | Click the percentage in the top bar, or **Ctrl+0** |
 | See everything on the board | The **⤢** button, or **Ctrl+1**: shows everything from the top-left corner |
 | Hide the sidebar for more room | The **☰** button, or **Ctrl+\\** |
+
+**On a touch screen:** drag one finger on an empty part of the board to move around, pinch with two fingers to zoom, and press and hold anything for its right-click menu.
 
 Each board remembers where you were looking and how far you'd zoomed.
 
@@ -488,7 +553,7 @@ The **Pocket-Canvas Web Clipper** saves things from your web browser straight on
 
 **From your browser's add-on store** (when published): search for *Pocket-Canvas*.
 
-**Without a store**, from the extension zip file (`pocket-canvas-web-clipper-1.3.0.zip`):
+**Without a store**, from the extension zip file (`pocket-canvas-web-clipper-1.4.0.zip`):
 
 *Chrome, Edge, Brave, Opera, Vivaldi*
 1. Unzip the file into a folder you'll keep.
@@ -593,7 +658,7 @@ Open **Settings** with the **⚙** button at the bottom of the sidebar, **File �
 
 Also:
 - **Dark / light:** click **Dark / light** at the bottom of the sidebar, or press **Ctrl+Shift+L**. Until you choose, Pocket-Canvas follows your computer's own setting.
-- **Shortcuts list:** click **Shortcuts** at the bottom of the sidebar, or press **F1**.
+- **Shortcuts list:** click **?** at the bottom of the sidebar, or press **F1**.
 - **Full screen:** **View → Toggle Full Screen** (F11 on Windows and Linux).
 
 ---
@@ -734,6 +799,20 @@ For the AppImage, make sure it's allowed to run as a program, and install `libfu
 - **Browser extension:** right-click its toolbar button › **Remove from…** (or remove it on the browser's extensions page).
 
 Uninstalling **doesn't delete your boards**. If you want those gone too, delete the data folder from [section 16](#16-undo-saving-and-your-data). If you used sync, you can also delete the **Pocket-Canvas Sync** folder.
+
+---
+
+## 25. The Android app
+
+Pocket-Canvas also runs on Android phones and tablets (Android 7 or newer), with the same boards, cards, templates, comments, Recycle bin and password-protected boards. With sync, your phone and computers stay the same.
+
+- **Installing** the app, and **setting up sync step by step** with the free Syncthing app, are covered in the [Android guide](ANDROID.md).
+- **Using it:**
+  - drag one finger to move around, pinch to zoom, tap to select and tap again to edit
+  - press and hold for the right-click menu
+  - **☰** shows your boards; **⋮** has templates, the Recycle bin, backups and settings
+  - **Back** closes windows and steps out of boards
+- **Desktop only:** exporting as a picture or PDF, automatic backups to another folder, the browser extension and spelling settings.
 
 ---
 

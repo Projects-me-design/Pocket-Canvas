@@ -31,7 +31,8 @@ async function moveCardsToBin(b, ids, { quiet = false } = {}) {
   store.bin = store.bin || {};
   const payload = serialize(ids, b);
   const inPayload = new Set(payload.cards.map((c) => c.id));
-  const crossLinks = b.links.filter((l) => (inPayload.has(l.from) || inPayload.has(l.to)) && !(inPayload.has(l.from) && inPayload.has(l.to)));
+  // lines joining these cards to cards that stay behind
+  const crossLinks = b.links.filter((l) => lineCards(l).some((id) => inPayload.has(id)) && !lineCards(l).every((id) => inPayload.has(id)));
   // Cards taken out of a column remember where the column was.
   const colPos = {};
   for (const c of payload.cards) {
@@ -126,7 +127,7 @@ async function restoreFromBin(entryId, { silent = false } = {}) {
     for (const sb of Object.values(p.boards)) store.boards[sb.id] = sb;
     for (const c of p.cards) if (c.type === 'board' && store.boards[c.boardId]) store.boards[c.boardId].parentId = target.id;
     target.links.push(...p.links);
-    for (const l of e.crossLinks || []) if (target.cards[l.from] && target.cards[l.to]) target.links.push(l);
+    for (const l of e.crossLinks || []) if (lineValid(l, target)) target.links.push(l);
   }
   delete store.bin[entryId];
   updateBinButton();

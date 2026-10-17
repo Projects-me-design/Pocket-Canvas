@@ -83,7 +83,7 @@ const TOKEN = crypto.randomBytes(32).toString('hex');
 let PORT = 0;
 
 const results = [];
-const check = (name, ok) => results.push({ name, ok: !!ok });
+const check = (name, ok) => { results.push({ name, ok: !!ok }); if (process.env.PC_VERBOSE) console.log((ok ? 'pass  ' : 'FAIL  ') + name); };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function until(fn, ms = 8000) { const t = Date.now(); while (Date.now() - t < ms) { if (await fn()) return true; await sleep(150); } return false; }
 
@@ -306,7 +306,7 @@ function request(method, p, { body, token, origin } = {}) {
     check('corner: scrolling up at the top stays put', (await ex(`B().view.y`)) <= vy + 0.5 && (await ex(`B().view.y`)) <= 40);
     wc.sendInputEvent({ type: 'mouseWheel', x: vp[0], y: vp[1], deltaX: 0, deltaY: -1200 }); await sleep(150);
     check('corner: the board carries on downwards', (await ex(`B().view.y`)) < vy - 500);
-    check('corner: the area beyond the corner is shaded', await ex(`B().view={x:40,y:40,z:1}; applyView(); document.querySelector('#edge-left').offsetWidth === 40 && document.querySelector('#edge-top').offsetHeight === 40`));
+    check('corner: no gap between the board and the window edge', await ex(`B().view={x:40,y:40,z:1}; applyView(); B().view.x === 0 && B().view.y === 0 && !document.querySelector('#edge-left')`));
     const nid2 = await ex(`(() => { const c = makeCard(B(), 'note', -300, -200, { html: '<p>corner</p>' }); renderBoard(); return c.id; })()`);
     check('corner: new cards can’t be placed beyond the corner', await ex(`B().cards['${nid2}'].x === 0 && B().cards['${nid2}'].y === 0`));
     await ex(`selectOnly('${nid2}')`);
@@ -506,6 +506,137 @@ function request(method, p, { body, token, origin } = {}) {
     const ctxNote = await ex(`Object.values(B().cards).find(c => c.type === 'note' && !c.col).id`);
     const ctx = await ex(`(() => { const ed = document.querySelector('.card[data-id="${ctxNote}"] .editable'); const fire = () => { const ev = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 }); ed.dispatchEvent(ev); return ev.defaultPrevented; }; const notEditing = fire(); hideMenu(); makeEditable(ed); ed.focus(); const editing = fire(); ed.blur(); return [notEditing, editing]; })()`);
     check('spelling: right-clicking while typing shows the spelling menu instead of the card menu', ctx[0] === true && ctx[1] === false);
+
+    // ================= 1.4: a fresh board to work on =================
+    await ex(`(() => { const c = makeCard(store.boards[store.root], 'board', 2000, 40, { title: 'Testing 1.4' }); go(c.boardId); })()`); await sleep(300);
+    check('board: the board starts flush with the window (no gap)', await ex(`B().view.x === 0 && B().view.y === 0`));
+    const q4Vpr = await ex(`(() => { const r = document.querySelector('#viewport').getBoundingClientRect(); return [r.left, r.top]; })()`);
+    const q4At = (x, y) => [Math.round(q4Vpr[0] + x), Math.round(q4Vpr[1] + y)];
+
+    // ================= 1.4: tables =================
+    const q4Tbl = await ex(`(() => { const c = makeCard(B(), 'table', 60, 60, { w: 380, rows: [['A','B','C'],['1','2','3'],['4','5','6']] }); renderBoard(); return c.id; })()`);
+    check('tables: delete buttons are shown on the table', await ex(`!!document.querySelector('.card[data-id="${q4Tbl}"] [data-act="del-row"]') && !!document.querySelector('.card[data-id="${q4Tbl}"] [data-act="del-col"]')`));
+    await ex(`(() => { const ed = document.querySelector('.card[data-id="${q4Tbl}"] [data-field="cell:1:1"]'); makeEditable(ed); ed.focus(); ed.blur(); })()`);
+    await ex(`document.querySelector('.card[data-id="${q4Tbl}"] [data-act="del-row"]').dispatchEvent(new MouseEvent('mouseover', { bubbles: true }))`);
+    check('tables: hovering “− Row” highlights the row it will delete', await ex(`[...document.querySelectorAll('.card[data-id="${q4Tbl}"] td.del-hint')].every(td => td.dataset.r === '1') && document.querySelectorAll('.card[data-id="${q4Tbl}"] td.del-hint').length === 3`));
+    await shot('table-delete.png');
+    await click(await centre(`.card[data-id="${q4Tbl}"] [data-act="del-row"]`));
+    check('tables: “− Row” deletes the row of the cell you clicked', await ex(`JSON.stringify(B().cards['${q4Tbl}'].rows) === JSON.stringify([['A','B','C'],['4','5','6']])`));
+    await ex(`(() => { const ed = document.querySelector('.card[data-id="${q4Tbl}"] [data-field="cell:0:0"]'); makeEditable(ed); ed.focus(); ed.blur(); })()`);
+    await click(await centre(`.card[data-id="${q4Tbl}"] [data-act="del-col"]`));
+    check('tables: “− Column” deletes the column of the cell you clicked', await ex(`JSON.stringify(B().cards['${q4Tbl}'].rows) === JSON.stringify([['B','C'],['5','6']])`));
+    await ex(`lastTableCell = null`);
+    await click(await centre(`.card[data-id="${q4Tbl}"] [data-act="del-col"]`));
+    check('tables: with no cell chosen, the last column goes', await ex(`JSON.stringify(B().cards['${q4Tbl}'].rows) === JSON.stringify([['B'],['5']])`));
+    await click(await centre(`.card[data-id="${q4Tbl}"] [data-act="del-col"]`));
+    check('tables: the last column can’t be deleted', await ex(`B().cards['${q4Tbl}'].rows[0].length === 1`));
+    await ex(`undo()`);
+    check('tables: deleting can be undone', await ex(`B().cards['${q4Tbl}'].rows[0].length === 2`));
+
+    // ================= 1.4: board icon colours =================
+    await ex(`openBoardIcon(cur)`); await sleep(300);
+    check('board icons: 51 background colours to choose from', (await ex(`document.querySelectorAll('.ip-colours .ip-col').length`)) === 51);
+    await ex(`document.querySelector('.ip-col[data-col="#22509c"]').click()`); await sleep(100);
+    check('board icons: picking a deep blue changes the board colour', await ex(`B().color === '#22509c'`));
+    await ex(`(() => { const i = document.querySelector('.ip-hex'); i.value = '#0f8a5f'; i.dispatchEvent(new Event('change', { bubbles: true })); })()`); await sleep(100);
+    check('board icons: any colour can be typed as a hex code', await ex(`B().color === '#0f8a5f' && document.querySelector('.ip-name').textContent.length > 2`));
+    await shot('board-icon-colours.png');
+    await ex(`document.querySelector('.modal .primary-btn, .modal-actions button').click()`); await sleep(200);
+
+    // ================= 1.4: lines =================
+    await ex(`toggleConnect()`);
+    check('lines: the line style bar shows while drawing', await ex(`!document.querySelector('#line-bar').hidden`));
+    await click(q4At(600, 380)); await click(q4At(900, 520));
+    const q4Fl = await ex(`B().links[B().links.length - 1]`);
+    check('lines: a line can be drawn between two empty spots', q4Fl && !q4Fl.from && !q4Fl.to && q4Fl.fromPt && q4Fl.toPt && Math.abs(q4Fl.toPt.x - q4Fl.fromPt.x - 300) < 3);
+    check('lines: the new line is selected with handles on both ends', await ex(`selectedLink === '${q4Fl.id}' && document.querySelectorAll('#line-handles circle').length === 2`));
+    await ex(`setLineProp('arrow', 'both'); setLineProp('dash', 'dotted')`);
+    check('lines: arrows at both ends', await ex(`(() => { const p = document.querySelector('path.link[data-id="${q4Fl.id}"]'); return p.hasAttribute('marker-start') && p.hasAttribute('marker-end'); })()`));
+    check('lines: dotted lines', await ex(`(() => { const p = document.querySelector('path.link[data-id="${q4Fl.id}"]'); return p.classList.contains('dotted') && p.style.strokeDasharray.length > 0; })()`));
+    await ex(`setLineProp('arrow', 'none')`);
+    check('lines: no arrowheads', await ex(`(() => { const p = document.querySelector('path.link[data-id="${q4Fl.id}"]'); return !p.hasAttribute('marker-start') && !p.hasAttribute('marker-end'); })()`));
+    await ex(`setLineProp('dash', 'dashed'); setLineProp('width', 5); setLineProp('shape', 'straight')`);
+    check('lines: dashed, thick and straight', await ex(`(() => { const l = B().links.find(x => x.id === '${q4Fl.id}'); const p = document.querySelector('path.link[data-id="${q4Fl.id}"]'); return l.dash === 'dashed' && l.width === 5 && p.getAttribute('d').includes(' L'); })()`));
+    check('lines: new lines remember the last style picked', await ex(`lineDefaults().dash === 'dashed' && lineDefaults().arrow === 'none'`));
+    await shot('lines-free.png');
+    // drag the whole free line
+    const q4Mid = q4At(750, 450);
+    await mouse('mouseDown', ...q4Mid);
+    for (let i = 1; i <= 5; i++) await mouse('mouseMove', q4Mid[0] + i * 10, q4Mid[1] + i * 8);
+    await mouse('mouseUp', q4Mid[0] + 50, q4Mid[1] + 40); await sleep(100);
+    check('lines: a free line can be dragged anywhere', await ex(`(() => { const l = B().links.find(x => x.id === '${q4Fl.id}'); return Math.abs(l.fromPt.x - ${q4Fl.fromPt.x} - 50) < 3 && Math.abs(l.toPt.y - ${q4Fl.toPt.y} - 40) < 3; })()`));
+    // attach one end to a card by dragging its handle onto it
+    const q4Lnote = await ex(`(() => { const c = makeCard(B(), 'note', 750, 150, { w: 200, html: '<p>Target</p>' }); renderBoard(); return c.id; })()`);
+    await ex(`selectedLink = '${q4Fl.id}'; refreshSelection()`);
+    const q4HEnd = await ex(`(() => { const r = document.querySelector('#line-handles circle[data-end="to"]').getBoundingClientRect(); return [Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2)]; })()`);
+    const q4Tgt = await centre(`.card[data-id="${q4Lnote}"]`);
+    await mouse('mouseDown', ...q4HEnd);
+    for (let i = 1; i <= 8; i++) await mouse('mouseMove', Math.round(q4HEnd[0] + (q4Tgt[0] - q4HEnd[0]) * i / 8), Math.round(q4HEnd[1] + (q4Tgt[1] - q4HEnd[1]) * i / 8));
+    check('lines: the card under a dragged end is highlighted', await ex(`document.querySelector('.card[data-id="${q4Lnote}"]').classList.contains('line-target')`));
+    await mouse('mouseUp', ...q4Tgt); await sleep(100);
+    check('lines: dropping an end on a card attaches it', await ex(`(() => { const l = B().links.find(x => x.id === '${q4Fl.id}'); return l.to === '${q4Lnote}' && !l.toPt && !!l.fromPt; })()`));
+    const q4Ny = await ex(`B().cards['${q4Lnote}'].y`);
+    await ex(`B().cards['${q4Lnote}'].y += 200; renderBoard();`);
+    check('lines: an attached end follows its card', await ex(`(() => { const d = document.querySelector('path.link[data-id="${q4Fl.id}"]').getAttribute('d'); const y = +d.split(/[ ,L]/).filter(Boolean).pop(); return y > ${q4Ny} + 150; })()`));
+    // press, drag and let go from a card to an empty spot
+    await ex(`clearSelection(); toggleConnect()`);
+    const q4From = await centre(`.card[data-id="${q4Lnote}"]`);
+    await mouse('mouseDown', ...q4From);
+    for (let i = 1; i <= 6; i++) await mouse('mouseMove', q4From[0] + i * 40, q4From[1] - i * 30);
+    await mouse('mouseUp', q4From[0] + 240, q4From[1] - 180); await sleep(100);
+    const q4Dl = await ex(`B().links[B().links.length - 1]`);
+    check('lines: drag from a card to anywhere to draw a line', q4Dl.from === q4Lnote && !q4Dl.to && q4Dl.toPt && q4Dl.id !== q4Fl.id);
+    check('lines: free lines are kept when the board is saved and reopened', await ex(`(() => { const b = JSON.parse(JSON.stringify(B())); return b.links.filter(l => lineValid(l, b)).length === b.links.length; })()`));
+    check('lines: older lines with the arrow hidden still have no arrowhead', await ex(`lineArrow({ arrow: false }) === 'none' && lineArrow({}) === 'end'`));
+    const q4Pasted = await ex(`(() => { const p = serialize(['${q4Lnote}']); const n = p.links.length; insertPayload(p, 400, 0); return n; })()`);
+    check('lines: copying a card brings its lines, free ends included', q4Pasted === 2);
+    await ex(`renderBoard()`);
+    const q4MenuLabels = await ex(`(() => { const l = B().links.find(x => x.id === '${q4Fl.id}'); return lineMenuItems(l).filter(i => i.label).map(i => i.label.trim()); })()`);
+    check('lines: the right-click menu has arrow, dash and detach options', ['Arrows at both ends', 'Dotted line', 'Detach from cards'].every((t) => q4MenuLabels.some((m) => m.endsWith(t))));
+    await ex(`(() => { const l = B().links.find(x => x.id === '${q4Fl.id}'); detachLine(l); })()`);
+    check('lines: “Detach from cards” frees both ends where they are', await ex(`(() => { const l = B().links.find(x => x.id === '${q4Fl.id}'); return !l.from && !l.to && l.fromPt && l.toPt; })()`));
+    await ex(`selectedLink = '${q4Dl.id}'; refreshSelection()`);
+    await shot('lines-attached.png');
+    await ex(`clearSelection()`);
+
+    // ================= 1.4: text formatting =================
+    const q4Tn = await ex(`(() => { const c = makeCard(B(), 'note', 60, 420, { w: 300, html: '<p>Hello world, this is a note</p>' }); renderBoard(); return c.id; })()`);
+    const q4Edp = await centre(`.card[data-id="${q4Tn}"] .editable`);
+    await click(q4Edp); await click(q4Edp); await sleep(100);
+    check('text: the formatting bar appears while typing', await ex(`!document.querySelector('#format-bar').hidden`));
+    await ex(`(() => { const ed = document.querySelector('.card[data-id="${q4Tn}"] .editable'); const t = ed.querySelector('p').firstChild; const r = document.createRange(); r.setStart(t, 6); r.setEnd(t, 11); const s = getSelection(); s.removeAllRanges(); s.addRange(r); })()`);
+    await ex(`applyFormat('bold')`);
+    check('text: bold', await ex(`/<b>world<\\/b>/.test(B().cards['${q4Tn}'].html)`));
+    await ex(`applyFormat('underline'); applyFormat('strike')`);
+    check('text: underline and strikethrough', await ex(`(() => { const h = B().cards['${q4Tn}'].html; return /<u>/.test(h) && /<strike>|<s>/.test(h); })()`));
+    await ex(`applyFormat('size', 28)`);
+    check('text: change size', await ex(`/font-size: 28px/.test(B().cards['${q4Tn}'].html)`));
+    await ex(`applyFormat('colour', '#d0453b')`);
+    check('text: change colour', await ex(`/color: (rgb\\(208, 69, 59\\)|#d0453b)/.test(B().cards['${q4Tn}'].html)`));
+    await ex(`applyFormat('font', "Georgia, 'Times New Roman', Times, serif")`);
+    check('text: change font', await ex(`/font-family: Georgia/.test(B().cards['${q4Tn}'].html)`));
+    check('text: only the selected words change', await ex(`(() => { const d = document.createElement('div'); d.innerHTML = B().cards['${q4Tn}'].html; return d.querySelector('[style*="28px"]').textContent === 'world' && d.querySelector('[style*="color"]').textContent === 'world' && d.querySelector('[style*="Georgia"]').textContent === 'world'; })()`));
+    await shot('text-format-note.png');
+    await ex(`getSelection().collapseToEnd(); applyFormat('italic')`);
+    check('text: with nothing selected, the whole note changes', await ex(`/^<p><i>|<i><p>/.test(B().cards['${q4Tn}'].html) || /<i>Hello/.test(B().cards['${q4Tn}'].html)`));
+    await ex(`document.activeElement.blur()`); await sleep(50);
+    check('text: the bar goes away when you stop typing', await ex(`document.querySelector('#format-bar').hidden`));
+    check('text: styles survive saving and reopening', await ex(`(() => { const h = sanitize(B().cards['${q4Tn}'].html); return /font-size: 28px/.test(h) && /font-family/.test(h); })()`));
+    check('text: unsafe styles are removed from pasted text', await ex(`sanitize('<span style="color:red;background:url(x);position:fixed">x</span><font color="#ff0000">y</font>') === '<span style="color: red">x</span><span style="color: rgb(255, 0, 0)">y</span>'`));
+    // whole-card styles on a heading
+    const q4Hd2 = await ex(`(() => { const c = makeCard(B(), 'heading', 60, 700, { text: 'Big title' }); renderBoard(); return c.id; })()`);
+    const q4Hp = await centre(`.card[data-id="${q4Hd2}"] .editable`);
+    await click(q4Hp); await click(q4Hp); await sleep(100);
+    await ex(`applyFormat('size', 48); applyFormat('bold'); applyFormat('underline'); applyFormat('colour', '#3a7be0'); applyFormat('font', "ui-monospace, Consolas, 'Courier New', monospace")`);
+    check('text: headings and other cards change as a whole', await ex(`(() => { const t = B().cards['${q4Hd2}'].textStyle; return t.size === 48 && t.bold && t.underline && t.color === '#3a7be0' && /monospace/.test(t.font); })()`));
+    check('text: …and it shows straight away', await ex(`(() => { const cs = getComputedStyle(document.querySelector('.card[data-id="${q4Hd2}"] .editable')); return cs.fontSize === '48px' && cs.textDecorationLine.includes('underline') && cs.color === 'rgb(58, 123, 224)'; })()`));
+    await shot('text-format-heading.png');
+    await key('B', ['control']);
+    check('text: Ctrl+B toggles bold on a heading', await ex(`!B().cards['${q4Hd2}'].textStyle.bold`));
+    await ex(`applyFormat('clear')`);
+    check('text: “clear formatting” resets the card', await ex(`!B().cards['${q4Hd2}'].textStyle`));
+    await ex(`document.activeElement.blur()`);
+    await ex(`go(store.root)`); await sleep(200);
 
     await ex(`B().view={x:20,y:20,z:0.55}; applyView(); renderBoard();`); await sleep(400);
     await shot('home-after.png');

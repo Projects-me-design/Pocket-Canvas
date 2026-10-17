@@ -35,10 +35,12 @@ Do Part 1 first. Signing is added later and does not change how you release.
 
 The workflow lives in `.github/workflows/build.yml` and runs in two stages:
 
-1. **test**, on Ubuntu. It runs the sync merge tests, the smoke test, the feature tests and the extension test in Chromium. Then it packages the browser extension zip.
-2. **build**, on Windows, Ubuntu and macOS at the same time. This stage runs only if every test passed. It makes the `.exe`, `.AppImage`, `.deb` and `.dmg`.
+1. **test**, on Ubuntu. It runs the sync merge tests, the smoke test, the feature tests, the extension test in Chromium and the Android screens test. Then it packages the browser extension zip.
+2. **build** and **android**, at the same time. This stage runs only if every test passed.
+   - **build** runs on Windows, Ubuntu and macOS and makes the `.exe`, `.AppImage`, `.deb` and `.dmg`.
+   - **android** makes the Android `.apk` (see [ANDROID.md](ANDROID.md)).
 
-The workflow starts in one of two ways. You can press **Run workflow** to make a test build, or you can push a tag such as `v1.3.0` to make a public release.
+The workflow starts in one of two ways. You can press **Run workflow** to make a test build, or you can push a tag such as `v1.4.0` to make a public release.
 
 ## 1.1 One-time set-up: put the project on GitHub
 
@@ -52,12 +54,12 @@ You only need to do this once.
    5. Leave **Add a README**, **.gitignore** and **licence** unticked, because the project already has them.
    6. Click **Create repository**.
 
-2. **Push the code.** Unzip `Pocket-Canvas-1.3.0-source.zip`, open a terminal in the `pocket-canvas` folder and run:
+2. **Push the code.** Unzip `Pocket-Canvas-1.4.0-source.zip`, open a terminal in the `pocket-canvas` folder and run:
 
    ```bash
    git init
    git add .
-   git commit -m "Pocket-Canvas 1.3.0"
+   git commit -m "Pocket-Canvas 1.4.0"
    git branch -M main
    git remote add origin https://github.com/Projects-me-design/Pocket-Canvas.git
    git push -u origin main
@@ -84,15 +86,16 @@ Use a test build whenever you want installers to try out without publishing anyt
 4. Refresh the page after a few seconds and click the new run.
 5. Watch the jobs:
    - **test** takes about 5 minutes.
-   - The three **build** jobs start only once **test** is green, and take 5 to 15 minutes each. macOS is usually the slowest.
+   - The three **build** jobs and the **android** job start only once **test** is green, and take 5 to 15 minutes each. macOS is usually the slowest.
 6. When the run finishes, scroll to the bottom of the run page and find **Artifacts**:
 
    | Artifact | Contains |
    |---|---|
-   | `pocket-canvas-windows-latest` | `Pocket-Canvas Setup 1.3.0.exe` |
-   | `pocket-canvas-macos-latest` | `Pocket-Canvas-1.3.0-arm64.dmg` (Apple-silicon Macs) |
-   | `pocket-canvas-ubuntu-24.04` | `Pocket-Canvas-1.3.0.AppImage`, `pocket-canvas_1.3.0_amd64.deb` |
-   | `pocket-canvas-browser-extension` | `pocket-canvas-web-clipper-1.3.0.zip` |
+   | `pocket-canvas-windows-latest` | `Pocket-Canvas Setup 1.4.0.exe` |
+   | `pocket-canvas-macos-latest` | `Pocket-Canvas-1.4.0-arm64.dmg` (Apple-silicon Macs) |
+   | `pocket-canvas-ubuntu-24.04` | `Pocket-Canvas-1.4.0.AppImage`, `pocket-canvas_1.4.0_amd64.deb` |
+   | `pocket-canvas-browser-extension` | `pocket-canvas-web-clipper-1.4.0.zip` |
+   | `pocket-canvas-android` | `Pocket-Canvas-1.4.0-android.apk` (see [ANDROID.md](ANDROID.md)) |
 
 7. Click an artifact to download it. GitHub always wraps artifacts in a zip, so unzip it to get the installer. Artifacts are deleted after 90 days.
 
@@ -104,7 +107,7 @@ A test build does **not** create a GitHub Release, and nobody else can see it un
 - **macOS:** open the `.dmg` and drag Pocket-Canvas to Applications.
   - Until it is signed and notarised, macOS says the app "can't be opened".
   - On macOS 15 or later, open **System Settings** → **Privacy & Security**, scroll down to the Pocket-Canvas message and click **Open Anyway**.
-- **Linux:** run `chmod +x Pocket-Canvas-1.3.0.AppImage && ./Pocket-Canvas-1.3.0.AppImage`, or install the `.deb` with `sudo apt install ./pocket-canvas_1.3.0_amd64.deb`.
+- **Linux:** run `chmod +x Pocket-Canvas-1.4.0.AppImage && ./Pocket-Canvas-1.4.0.AppImage`, or install the `.deb` with `sudo apt install ./pocket-canvas_1.4.0_amd64.deb`.
 
 Check the things this release changed, then check the basics: open a board, add a card, restart the app and make sure the card is still there.
 
@@ -384,11 +387,11 @@ Azure Artifact Signing used to be called **Trusted Signing**, and some Azure scr
    | `AZURE_PUBLISHER_NAME` | `Project Tech Me Ltd`, exactly as the certificate's Subject Name |
 
 10. **Run a test build** (section 1.2). In the **windows-latest** job's **Build installer** step, look for lines about signing with Azure. Then check the downloaded installer:
-    - Right-click `Pocket-Canvas Setup 1.3.0.exe` → **Properties** → **Digital Signatures**. Your company name should be listed.
+    - Right-click `Pocket-Canvas Setup 1.4.0.exe` → **Properties** → **Digital Signatures**. Your company name should be listed.
     - Or, in PowerShell:
 
       ```powershell
-      Get-AuthenticodeSignature ".\Pocket-Canvas Setup 1.3.0.exe" | Format-List
+      Get-AuthenticodeSignature ".\Pocket-Canvas Setup 1.4.0.exe" | Format-List
       #   Status : Valid
       ```
 

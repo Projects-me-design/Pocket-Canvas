@@ -5,6 +5,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 const on = (channel) => (fn) => ipcRenderer.on(channel, (_e, payload) => fn(payload));
 
 contextBridge.exposeInMainWorld('api', {
+  platform: 'desktop',
   // data
   load: () => ipcRenderer.invoke('data:load'),
   save: (json) => ipcRenderer.invoke('data:save', json),
