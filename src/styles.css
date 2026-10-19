@@ -403,6 +403,9 @@ legend { font-size: 12px; font-weight: 600; color: var(--muted); padding: 0 4px;
 .sk-color.on { border-color: var(--text); }
 .sk-size { width: 28px; height: 28px; border: 1px solid transparent; background: none; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
 .sk-size i { background: var(--text); border-radius: 50%; display: block; }
+.sk-mode { width: 30px; height: 28px; border: 1px solid transparent; background: none; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; padding: 0; color: var(--text); }
+.sk-mode svg { width: 20px; height: 20px; }
+.sk-mode.on, .sk-fill.on { border-color: var(--accent); background: var(--accent-soft); }
 .sk-size.on, .sk-btn.on { border-color: var(--accent); background: var(--accent-soft); }
 .sk-btn { border: 1px solid var(--line); background: transparent; border-radius: 6px; font-size: 12px; padding: 5px 9px; }
 .sk-done { padding: 6px 14px; }
@@ -471,7 +474,12 @@ legend { font-size: 12px; font-weight: 600; color: var(--muted); padding: 0 4px;
 .export-mode .card.selected { box-shadow: var(--card-shadow); }
 html.export-white, html.export-white body, html.export-white #viewport { background: #ffffff; }
 html.export-transparent, html.export-transparent body, html.export-transparent #viewport { background: transparent; }
-@media print { .export-mode #viewport { position: fixed; inset: 0; } }
+@media print { .export-mode:not(.export-paged) #viewport { position: fixed; inset: 0; } }
+/* Printing on pages: one long strip that the printer cuts into pages */
+html.export-paged, html.export-paged body { height: auto; overflow: visible; }
+html.export-paged #app, html.export-paged #main, html.export-paged #workspace { display: block; height: auto; overflow: visible; }
+html.export-paged #viewport { position: relative; inset: auto; width: var(--page-w); height: var(--page-strip); overflow: visible; }
+@media print { html.export-paged #viewport { position: relative; } }
 
 /* =====================================================================
    Version 1.2: fixed top-left corner, board icons, editable colours
@@ -607,19 +615,19 @@ html.export-transparent, html.export-transparent body, html.export-transparent #
 
 /* ---------- Touch screens, phones and the Android app ---------- */
 #viewport { touch-action: none; }
-html.android, html.android body { height: 100%; overflow: hidden; }
-html.android #app {
-  height: calc(100vh - var(--safe-area-inset-top, 0px) - var(--safe-area-inset-bottom, 0px));
-  margin: var(--safe-area-inset-top, 0px) var(--safe-area-inset-right, 0px) 0 var(--safe-area-inset-left, 0px);
+html.mobile, html.mobile body { height: 100%; overflow: hidden; }
+html.mobile #app {
+  height: calc(100vh - var(--safe-area-inset-top, env(safe-area-inset-top, 0px)) - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+  margin: var(--safe-area-inset-top, env(safe-area-inset-top, 0px)) var(--safe-area-inset-right, env(safe-area-inset-right, 0px)) 0 var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
 }
-html.android body { background: var(--panel); }
-html.android #line-handles circle { r: 12px; }
-html.android .card .resize { width: 22px; height: 22px; }
-html.android .tool { cursor: pointer; }
+html.mobile body { background: var(--panel); }
+html.mobile #line-handles circle { r: 12px; }
+html.mobile .card .resize { width: 22px; height: 22px; }
+html.mobile .tool { cursor: pointer; }
 #more-btn { font-size: 20px; line-height: 1; }
 @media (max-width: 760px) {
   #sidebar { position: fixed; top: 0; bottom: 0; left: 0; z-index: 200; box-shadow: 0 0 40px rgba(0,0,0,.25); }
-  html.android #sidebar { top: var(--safe-area-inset-top, 0px); }
+  html.mobile #sidebar { top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); }
   #rail { width: 56px; padding: 6px 0; }
   .tool { width: 50px; padding: 6px 0; }
   .tool span { display: none; }
@@ -634,3 +642,57 @@ html.android .tool { cursor: pointer; }
   .settings { flex-direction: column; gap: 12px; min-height: 0; }
   .set-tabs { flex-direction: row; flex-wrap: wrap; min-width: 0; }
 }
+
+/* ---------- Online videos in link cards ---------- */
+.vid { position: relative; aspect-ratio: 16 / 9; background: #111; overflow: hidden; }
+.vid img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+.vid iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.vid-blank { position: absolute; inset: 0; display: flex; align-items: flex-start; justify-content: flex-start; padding: 12px 14px; color: #fff; font-weight: 700; font-size: 16px; background: var(--site); opacity: .85; }
+.vid-play { position: absolute; left: 50%; top: 50%; width: 64px; height: 44px; transform: translate(-50%, -50%); border: none; border-radius: 12px; background: var(--site); color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 10px rgba(0,0,0,.35); cursor: pointer; }
+.vid-play svg { width: 26px; height: 26px; }
+.vid-play:hover { filter: brightness(1.1); }
+.vid-bar { display: flex; align-items: center; gap: 8px; padding: 6px 12px 0; }
+.vid-site { font-size: 12px; color: var(--muted); flex: 1; }
+.card.link.video .link-body { padding-top: 6px; }
+.export-mode .vid-play, .export-mode .vid-bar { display: none; }
+
+/* ---------- Pocket-Canvas Server: status, people, shared boards ---------- */
+.server-state { border: 1px solid var(--line); background: none; border-radius: 20px; font-size: 12px; padding: 2px 10px; color: var(--muted); }
+.server-state.online { color: #2f8a4d; border-color: rgba(47,138,77,.4); }
+.server-state.online::before { content: "● "; }
+.server-state.offline, .server-state.error { color: #c0392b; border-color: rgba(192,57,43,.4); }
+#peers { display: inline-flex; gap: 2px; margin-right: 4px; }
+#peers[hidden] { display: none; }
+.peer-dot { width: 26px; height: 26px; border-radius: 50%; background: var(--peer); color: #fff; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; border: 2px solid var(--panel); }
+.card.peer { box-shadow: 0 0 0 2px var(--peer), var(--card-shadow); }
+.card.peer::after { content: attr(data-peer); position: absolute; left: -2px; top: -20px; background: var(--peer); color: #fff; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 6px 6px 6px 0; white-space: nowrap; pointer-events: none; z-index: 5; }
+.shared-badge { position: absolute; left: 3px; bottom: 3px; width: 22px; height: 22px; border-radius: 50%; background: #3a7be0; color: #fff; display: flex; align-items: center; justify-content: center; border: 2px solid var(--panel); }
+.shared-badge svg { width: 13px; height: 13px; }
+.tree-shared { display: inline-flex; margin-left: 4px; color: #3a7be0; }
+.tree-shared svg { width: 13px; height: 13px; }
+.share-list { display: flex; flex-direction: column; gap: 6px; max-height: 300px; overflow: auto; margin: 10px 0; }
+.export-mode .shared-badge, .export-mode .card.peer::after { display: none; }
+
+/* ---------- Page guides (A4 / Letter pages for printing) ---------- */
+#page-guides { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; pointer-events: none; z-index: 0; }
+.pg-page { position: absolute; box-sizing: border-box; border: 1.5px dashed var(--pg-line); background: var(--pg-fill); }
+.pg-page.blank { background: transparent; border-color: var(--pg-line-faint); }
+.pg-label { position: absolute; right: 8px; bottom: 6px; font-size: 12px; font-weight: 600; color: var(--pg-line); letter-spacing: .02em; white-space: nowrap; }
+.pg-page.blank .pg-label { color: var(--pg-line-faint); font-weight: 500; }
+:root { --pg-line: rgba(46, 108, 196, .55); --pg-line-faint: rgba(46, 108, 196, .28); --pg-fill: rgba(46, 108, 196, .035); --pg-warn: #d9822b; }
+[data-theme="dark"] { --pg-line: rgba(120, 170, 240, .55); --pg-line-faint: rgba(120, 170, 240, .25); --pg-fill: rgba(120, 170, 240, .04); }
+.card.crosses-page { box-shadow: 0 0 0 2px var(--pg-warn), var(--card-shadow); }
+.card.crosses-page.selected { box-shadow: 0 0 0 2px var(--accent), 0 0 0 5px var(--pg-warn), var(--card-shadow); }
+#pages-btn.on { color: var(--accent); background: var(--panel-2); }
+#pages-chip { position: absolute; left: 12px; bottom: 12px; z-index: 20; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 12px; padding: 5px 11px; border-radius: 999px; box-shadow: var(--card-shadow); cursor: pointer; }
+#pages-chip .warn { color: var(--pg-warn); font-weight: 600; }
+.menu button .tick { display: inline-block; width: 18px; font-style: normal; color: var(--accent); }
+.export-mode #page-guides, .export-mode #pages-chip { display: none !important; }
+.export-mode .card.crosses-page { box-shadow: var(--card-shadow); }
+
+/* Printing exactly the pages the guides show: one block per sheet */
+html.export-guided #app { display: none !important; }
+html.export-guided, html.export-guided body { height: auto; overflow: visible; }
+#print-pages .print-page { position: relative; overflow: clip; contain: strict; break-after: page; page-break-after: always; }
+#print-pages .print-page:last-child { break-after: auto; page-break-after: auto; }
+#print-pages .print-page > div { position: absolute; left: 0; top: 0; transform-origin: 0 0; }

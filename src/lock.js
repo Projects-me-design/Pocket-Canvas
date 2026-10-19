@@ -332,6 +332,7 @@ function lockMenuItems(id) {
   if (id === store.root) return [];
   const b = store.boards[id];
   if (!b) return [];
+  if (!b.lock && typeof spaceOfBoard === 'function' && spaceOfBoard(id)) return []; // shared boards can't have a password
   if (!b.lock) return [{ label: 'Lock with a password…', run: () => lockBoard(id) }];
   if (!unlocked.has(id)) return [{ label: 'Unlock…', run: () => go(id) }];
   return [

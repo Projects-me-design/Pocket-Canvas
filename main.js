@@ -73,6 +73,16 @@ function createWindow() {
   win.on('closed', () => { win = null; rendererReady = false; });
   win.webContents.on('context-menu', (_e, params) => spellMenu(params));
 
+  // Video players (YouTube and others) need to know which app is showing them; a page loaded from
+  // a file has no web address, so tell them it's Pocket-Canvas.
+  win.webContents.session.webRequest.onBeforeSendHeaders(
+    { urls: ['https://www.youtube-nocookie.com/*', 'https://www.youtube.com/*', 'https://player.vimeo.com/*', 'https://www.dailymotion.com/*', 'https://geo.dailymotion.com/*', 'https://www.loom.com/*'] },
+    (details, cb) => {
+      const h = details.requestHeaders;
+      if (!h.Referer && !h.referer) h.Referer = 'https://pocket-canvas.app/';
+      cb({ requestHeaders: h });
+    });
+
   // Open external links in the system browser, never inside the app.
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//i.test(url)) shell.openExternal(url);
@@ -135,6 +145,7 @@ function buildMenu() {
         { label: 'Zoom Out', accelerator: 'CmdOrCtrl+-', click: cmd('zoom-out') },
         { label: 'Reset Zoom', accelerator: 'CmdOrCtrl+0', click: cmd('zoom-reset') },
         { label: 'Fit to Content', accelerator: 'CmdOrCtrl+1', click: cmd('zoom-fit') },
+        { label: 'Page Guides On / Off', accelerator: 'CmdOrCtrl+Shift+G', click: cmd('page-guides') },
         { type: 'separator' },
         { label: 'Toggle Sidebar', accelerator: 'CmdOrCtrl+\\', click: cmd('toggle-sidebar') },
         { label: 'Toggle Dark Mode', accelerator: 'CmdOrCtrl+Shift+L', click: cmd('toggle-theme') },
@@ -238,6 +249,22 @@ ipcMain.handle('assets:pick', async (_e, kind) => {
   });
 });
 
+// Pictures and files sent to / fetched from your Pocket-Canvas Server.
+const ASSET_ID = /^[0-9a-f]{16}\.[a-z0-9]{1,10}$/;
+ipcMain.handle('assets:read', (_e, id) => {
+  if (!ASSET_ID.test(String(id))) return null;
+  try { return fs.readFileSync(path.join(ASSET_DIR(), String(id))); } catch { return null; }
+});
+ipcMain.handle('assets:write', (_e, { id, bytes }) => {
+  if (!ASSET_ID.test(String(id)) || !bytes) return false;
+  const file = path.join(ASSET_DIR(), String(id));
+  if (fs.existsSync(file)) return true;
+  fs.writeFileSync(file + '.tmp', Buffer.from(bytes));
+  fs.renameSync(file + '.tmp', file);
+  return true;
+});
+ipcMain.handle('assets:missing', (_e, ids) => (Array.isArray(ids) ? ids : []).filter((id) => ASSET_ID.test(String(id)) && !fs.existsSync(path.join(ASSET_DIR(), String(id)))));
+
 ipcMain.handle('assets:open', (_e, id) => {
   const safe = path.basename(String(id));
   return shell.openPath(path.join(ASSET_DIR(), safe));
@@ -284,11 +311,12 @@ ipcMain.handle('dialog:confirm', async (_e, { message, detail }) => {
 
 // ---------- Export ----------
 ipcMain.handle('export:visual', async (_e, opts) => {
-  const format = opts.format === 'pdf' ? 'pdf' : 'png';
+  const format = ['pdf', 'pages'].includes(opts.format) ? opts.format : 'png';
+  const ext = format === 'png' ? 'png' : 'pdf';
   const safeName = String(opts.title || 'Board').replace(/[\\/:*?"<>|]+/g, '-').slice(0, 80) || 'Board';
   const res = await dialog.showSaveDialog(win, {
-    defaultPath: `${safeName}.${format}`,
-    filters: format === 'pdf' ? [{ name: 'PDF document', extensions: ['pdf'] }] : [{ name: 'PNG picture', extensions: ['png'] }]
+    defaultPath: `${safeName}.${ext}`,
+    filters: ext === 'pdf' ? [{ name: 'PDF document', extensions: ['pdf'] }] : [{ name: 'PNG picture', extensions: ['png'] }]
   });
   if (res.canceled || !res.filePath) return { canceled: true };
   try {
@@ -298,7 +326,10 @@ ipcMain.handle('export:visual', async (_e, opts) => {
       background: ['board', 'white', 'transparent'].includes(opts.background) ? opts.background : 'board',
       theme: opts.theme === 'dark' ? 'dark' : 'light',
       filePath: res.filePath,
-      data: typeof opts.data === 'string' ? opts.data : null
+      data: typeof opts.data === 'string' ? opts.data : null,
+      paper: opts.paper === 'Letter' ? 'Letter' : 'A4',
+      orientation: ['portrait', 'landscape'].includes(opts.orientation) ? opts.orientation : 'auto',
+      layout: opts.layout === 'guides' ? 'guides' : 'auto'
     });
     return { ...out, filePath: res.filePath };
   } catch (err) {
@@ -317,6 +348,12 @@ ipcMain.handle('settings:set', (_e, patch) => {
   if (typeof p.userName === 'string') clean.userName = p.userName.trim().slice(0, 60) || 'Me';
   if (typeof p.deviceName === 'string') clean.deviceName = p.deviceName.trim().slice(0, 60) || 'This computer';
   if (typeof p.linkPreviews === 'boolean') clean.linkPreviews = p.linkPreviews;
+  if (p.server && typeof p.server === 'object') {
+    const s = p.server;
+    const url = typeof s.url === 'string' && /^https?:\/\/[^\s]+$/i.test(s.url.trim()) ? s.url.trim().replace(/\/+$/, '') : '';
+    const user = s.user && typeof s.user === 'object' ? { id: String(s.user.id || '').slice(0, 40), name: String(s.user.name || '').slice(0, 60), display: String(s.user.display || s.user.name || '').slice(0, 60) } : null;
+    clean.server = { url, token: typeof s.token === 'string' ? s.token.slice(0, 200) : null, user, personal: s.personal !== false };
+  }
   let restartClipper = false;
   if (p.clipper) {
     const c = {};

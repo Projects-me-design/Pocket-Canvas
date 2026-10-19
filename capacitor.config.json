@@ -1,12 +1,17 @@
 {
   "appId": "com.projecttechme.pocketcanvas",
   "appName": "Pocket-Canvas",
-  "webDir": "build/android-www",
+  "webDir": "build/mobile-www",
   "android": {
     "path": "android",
-    "allowMixedContent": false,
+    "allowMixedContent": true,
     "captureInput": true,
     "webContentsDebuggingEnabled": true
+  },
+  "ios": {
+    "path": "ios",
+    "contentInset": "never",
+    "scrollEnabled": false
   },
   "plugins": {
     "SystemBars": { "insetsHandling": "css" }

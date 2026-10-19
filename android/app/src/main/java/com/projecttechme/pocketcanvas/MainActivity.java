@@ -9,7 +9,7 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        registerPlugin(AllFilesAccessPlugin.class);
+        registerPlugin(SyncFolderPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

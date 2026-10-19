@@ -18,6 +18,7 @@ A hand-drawn illustration of a corkboard with pinned notes, a photo, a colour pa
 | `src/icon.png` | Window and taskbar icon, sidebar logo and About box (512 × 512) |
 | `browser-extension/icons/icon-16.png` … `icon-128.png` | Browser-extension toolbar and store icons (16, 32, 48, 96, 128 px), resized from the same artwork |
 | `android/app/src/main/res/mipmap-*/ic_launcher*.png`, `drawable*/splash.png` | Android app icons (normal, round and adaptive foreground) and splash screens, made from the same artwork |
+| `ios/App/App/Assets.xcassets/AppIcon.appiconset/*`, `Splash.imageset/*` | iPhone and iPad app icon and splash screen, made from the same artwork |
 
 **Artwork by project-tech-me.** Copyright © 2026 project-tech-me <project-tech-me@protonmail.com>. All rights reserved.
 
@@ -74,7 +75,14 @@ The full Electron licence (`LICENSE`) and the licences for Chromium and its comp
 - Website: https://nodejs.org
 - Licence: MIT and the licences of its components (included in `LICENSES.chromium.html`).
 
-### In the Android app only
+### Pocket-Canvas Server
+| Component | Licence |
+|---|---|
+| ws (WebSocket library) | MIT |
+| Node.js (to run it) | MIT |
+| Caddy (optional, in docker-compose.yml) | Apache-2.0 |
+
+### In the phone and tablet apps (Android, iPhone, iPad)
 | Component | Licence |
 |---|---|
 | Capacitor (`@capacitor/android`, `@capacitor/core`) — Ionic | MIT |
@@ -82,6 +90,8 @@ The full Electron licence (`LICENSE`) and the licences for Chromium and its comp
 | Ionic file system library (used by the Filesystem plugin) | MIT |
 | AndroidX libraries (AppCompat, Core, CoordinatorLayout, SplashScreen, WebKit) — Google | Apache-2.0 |
 | Kotlin standard library and coroutines — JetBrains | Apache-2.0 |
+| AndroidX DocumentFile — Google | Apache-2.0 |
+| Capacitor iOS (`@capacitor/ios`) and its Swift package — Ionic | MIT |
 
 The full licence texts come with each package (for example `node_modules/@capacitor/android/LICENSE`). Before publishing the Android app widely (for example on Google Play), add an "Open-source licences" page to the app that shows these texts, as the Apache-2.0 licence asks for.
 
@@ -95,7 +105,8 @@ These are used to build the installers but are **not** included in the app the u
 | NSIS (Windows installer engine, used by electron-builder) | zlib/libpng |
 | AppImage runtime (used by electron-builder) | MIT |
 | Playwright (only for the automated browser-extension and Android-screens tests) | Apache-2.0 |
-| Capacitor CLI (prepares the Android project) | MIT |
+| Capacitor CLI (prepares the Android and iOS projects) | MIT |
+| Xcode and Apple's Safari web extension converter (build the iOS app and the Safari extension app) | Apple's Xcode licence |
 | Gradle and the Android Gradle Plugin (build the APK) | Apache-2.0 |
 | web-ext (Mozilla's extension checker, optional) | MPL-2.0 |
 

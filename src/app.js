@@ -175,6 +175,7 @@ async function flushSave() {
       const sealed = await prepareSealed();
       await api.save(JSON.stringify(sealed));
       $('#save-state').textContent = 'Saved';
+      if (typeof serverOnSaved === 'function') serverOnSaved(sealed); // your Pocket-Canvas Server, if you use one
     } catch (err) {
       $('#save-state').textContent = 'Save failed!';
       console.error(err);
@@ -372,11 +373,14 @@ function renderBoard() {
     cardsEl.appendChild(el);
   }
   cleanupMedia();
+  cleanupVideos();
   $('#empty-hint').hidden = b.order.length > 0 || !!EXPORT_MODE;
   applyView();
   refreshSelection();
   requestAnimationFrame(drawLinks);
   refreshComments();
+  if (typeof updatePeers === 'function') updatePeers();
+  if (typeof updatePageGuides === 'function') updatePageGuides();
 }
 
 function editable(field, value, ph, rich = false) {
@@ -415,14 +419,16 @@ function buildCard(c, b) {
       const fav = c.icon
         ? `<img src="${assetBase + encodeURIComponent(c.icon)}" alt="" draggable="false" data-letter="${esc((host || '?')[0])}">`
         : esc((host || '?')[0]);
-      html = `${c.image ? `<div class="link-img"><img src="${assetBase + encodeURIComponent(c.image)}" alt="" draggable="false"></div>` : ''}
+      const video = !showEdit && showsPlayer(c);
+      if (video) el.classList.add('video');
+      html = `${video ? buildVideoHtml(c) : c.image ? `<div class="link-img"><img src="${assetBase + encodeURIComponent(c.image)}" alt="" draggable="false"></div>` : ''}
         <div class="link-body">
         <div class="link-top"><div class="link-fav">${fav}</div>
           <div class="link-title">${editable('title', c.title, host || 'Link title')}</div></div>
         ${c.desc ? `<div class="link-desc">${esc(c.desc)}</div>` : ''}
         ${showEdit
           ? `<input class="link-edit" placeholder="Paste or type a web address, then press Enter" value="${esc(c.url)}">`
-          : `<span class="link-url" title="Open ${esc(c.url)}">${esc(c.site || host || c.url)}</span>`}
+          : video ? '' : `<span class="link-url" title="Open ${esc(c.url)}">${esc(c.site || host || c.url)}</span>`}
         ${previewLoading.has(c.id) ? '<div class="link-loading">Fetching preview…</div>' : ''}
         </div>`;
       break;
@@ -454,7 +460,7 @@ function buildCard(c, b) {
       const sub = store.boards[c.boardId];
       const n = sub ? Object.keys(sub.cards).length : 0;
       const locked = sub && sub.lock;
-      html = `<div class="board-ico${sub && sub.iconAsset ? ' custom' : ''}${boardIconInfo(sub).tint ? '' : ' full'}" title="${locked ? 'Locked: open with password' : 'Open board'}">${boardIconImg(sub)}${locked ? `<span class="lock-badge">${LOCK_ICON}</span>` : ''}</div>
+      html = `<div class="board-ico${sub && sub.iconAsset ? ' custom' : ''}${boardIconInfo(sub).tint ? '' : ' full'}" title="${locked ? 'Locked: open with password' : 'Open board'}">${boardIconImg(sub)}${locked ? `<span class="lock-badge">${LOCK_ICON}</span>` : ''}${sub && isSharedRoot(sub.id) ? `<span class="shared-badge" title="Shared with other people">${SHARED_ICON}</span>` : ''}</div>
         <div class="board-name">${editable('boardname', sub ? sub.title : '', 'Untitled board')}</div>
         <div class="board-count">${locked && !isUnlocked(sub.id) ? 'Locked' : `${n} card${n === 1 ? '' : 's'}`}</div>`;
       break;
@@ -540,6 +546,7 @@ function refreshSelection() {
   const del = $('#delete-btn'); if (del) del.disabled = !selected.size && !selectedLink;
   $$('.card', cardsEl).forEach((el) => el.classList.toggle('selected', selected.has(el.dataset.id)));
   drawLinks(); // redraws the selected line's end handles and the line style bar
+  if (typeof serverPresence === 'function') serverPresence();
 }
 function selectOnly(id) { selected.clear(); if (id) selected.add(id); selectedLink = null; refreshSelection(); }
 function clearSelection() { selected.clear(); selectedLink = null; refreshSelection(); }
@@ -580,7 +587,7 @@ function renderTree() {
     rows.push(`<div class="tree-row ${bid === cur ? 'active' : ''}" data-board="${bid}" style="padding-left:${6 + depth * 14}px">
       <span class="tree-tog" data-tog="${bid}">${kids.length ? (collapsed ? '▸' : '▾') : ''}</span>
       <span class="tree-ico${b.iconAsset ? ' custom' : ''}" style="background:${esc(b.color || '#8a7f70')}">${boardIconImg(b)}</span>
-      <span class="tree-name">${esc(b.title || 'Untitled board')}</span>${b.lock ? `<span class="tree-lock" title="${isUnlocked(bid) ? 'Unlocked for now' : 'Locked'}">${LOCK_ICON}</span>` : ''}</div>`);
+      <span class="tree-name">${esc(b.title || 'Untitled board')}</span>${isSharedRoot(bid) ? `<span class="tree-shared" title="Shared with other people">${SHARED_ICON}</span>` : ''}${b.lock ? `<span class="tree-lock" title="${isUnlocked(bid) ? 'Unlocked for now' : 'Locked'}">${LOCK_ICON}</span>` : ''}</div>`);
     if (!collapsed) kids.forEach((k) => walk(k, depth + 1));
   };
   walk(store.root, 0);
@@ -1419,7 +1426,7 @@ async function fillImage(cardId, file) {
 function addLinkCard(url, pos) {
   let title = '';
   try { title = new URL(url).hostname.replace(/^www\./, ''); } catch { return; }
-  const c = addCard('link', pos, { url, title });
+  const c = addCard('link', pos, { url, title, ...(videoEmbed(url) ? { w: 420 } : {}) });
   fetchPreview(c.id);
 }
 
@@ -1516,8 +1523,9 @@ function showMenu(x, y, items) {
       continue;
     }
     const btn = document.createElement('button');
-    btn.innerHTML = `<span>${esc(it.label)}</span>${it.hint ? `<span class="hint">${esc(it.hint)}</span>` : ''}`;
+    btn.innerHTML = `<span>${it.checked !== undefined ? `<i class="tick">${it.checked ? '✓' : ''}</i>` : ''}${esc(it.label)}</span>${it.hint ? `<span class="hint">${esc(it.hint)}</span>` : ''}`;
     if (it.danger) btn.className = 'danger';
+    if (it.checked) btn.classList.add('checked');
     btn.onclick = () => { hideMenu(); it.run(); };
     ctx.appendChild(btn);
   }
@@ -1558,7 +1566,9 @@ viewport.addEventListener('contextmenu', (e) => {
       ...lockMenuItems(cur),
       ...(cur !== store.root ? [{ label: 'Delete this board', danger: true, run: () => deleteBoard(cur) }] : []),
       { label: 'Save this board as a template…', run: () => saveBoardAsTemplate(cur) },
-      { label: 'Export board as picture or PDF…', hint: 'Ctrl+Shift+E', run: openExport },
+      { label: 'Export board as picture or PDF…', hint: 'Ctrl+Shift+E', run: () => openExport() },
+      { label: pageSetup().show ? 'Hide page guides' : 'Show page guides', hint: 'Ctrl+Shift+G', run: togglePageGuides },
+      { label: 'Page guide settings…', run: () => openPageGuideMenu($('#pages-btn')) },
       '-',
       { label: 'Fit to content', hint: 'Ctrl+1', run: fitContent },
       { label: 'Select all', hint: 'Ctrl+A', run: selectAll }
@@ -1576,6 +1586,7 @@ viewport.addEventListener('contextmenu', (e) => {
     items.push({ label: 'Open board', run: () => go(c.boardId) });
     items.push({ label: 'Change icon…', run: () => openBoardIcon(c.boardId) });
     items.push(...lockMenuItems(c.boardId));
+    items.push({ label: isSharedRoot(c.boardId) ? 'Shared with…' : 'Share with people…', run: () => openShare(c.boardId) });
     items.push({ label: 'Save as a template…', run: () => saveBoardAsTemplate(c.boardId) });
   }
   if (c.type === 'link') {
@@ -1583,6 +1594,11 @@ viewport.addEventListener('contextmenu', (e) => {
     items.push({ label: 'Edit web address', run: () => { urlEditing.add(id); rerenderCard(id); startEditOf(id); } });
     if (c.url) items.push({ label: 'Refresh preview', run: () => fetchPreview(id, true) });
     if (c.image) items.push({ label: 'Remove preview picture', run: () => { checkpoint(); delete c.image; rerenderCard(id); scheduleSave(); } });
+    if (videoEmbed(c.url)) {
+      items.push(showsPlayer(c)
+        ? { label: 'Show as link card', run: () => { checkpoint(); c.player = false; playingVideos.delete(id); rerenderCard(id); scheduleSave(); } }
+        : { label: 'Show as video player', run: () => { checkpoint(); delete c.player; if (c.w < 360) c.w = 420; rerenderCard(id); scheduleSave(); } });
+    }
   }
   if (c.type === 'sketch') items.push({ label: 'Draw', hint: 'Double-click', run: () => startSketch(id) });
   if (c.type === 'image' && !c.asset) items.push({ label: 'Choose picture…', run: () => cardAction('pick-image', c) });
@@ -1651,7 +1667,8 @@ $('#tree').addEventListener('contextmenu', (e) => {
       if (v && v.title && v.title !== b.title) { checkpoint(); b.title = v.title.slice(0, 120); renderTree(); renderCrumbs(); if (store.boards[cur].cards) renderBoard(); scheduleSave(); }
     } },
     { label: 'Change icon…', run: () => openBoardIcon(id) },
-    ...lockMenuItems(id)
+    ...lockMenuItems(id),
+    ...(id !== store.root ? [{ label: isSharedRoot(id) ? 'Shared with…' : 'Share with people…', run: () => openShare(id) }] : [])
   ];
   if (id !== store.root) items.push('-', { label: 'Move to Recycle bin', danger: true, run: () => deleteBoard(id) });
   showMenu(e.clientX, e.clientY, items);
@@ -1848,6 +1865,11 @@ $('#zoom-in').onclick = () => zoomAt(B().view.z * 1.2);
 $('#zoom-out').onclick = () => zoomAt(B().view.z / 1.2);
 $('#zoom-label').onclick = () => zoomAt(1);
 $('#zoom-fit').onclick = fitContent;
+$('#pages-btn').innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4" /><path d="M9 12h6M9 16h6" stroke-dasharray="2 2"/></svg>';
+$('#pages-btn').onclick = (e) => { e.stopPropagation(); openPageGuideMenu($('#pages-btn')); };
+$('#pages-chip').onclick = (e) => { e.stopPropagation(); openPageGuideMenu($('#pages-chip')); };
+cardsEl.addEventListener('input', () => updatePageGuides());
+document.addEventListener('pointerup', () => { if (store && pageSetup().show) updatePageGuides(); });
 $('#settings-btn').innerHTML = ICONS.settings;
 $('#settings-btn').onclick = () => openSettings();
 $('#sync-state').onclick = () => openSettings('sync');
@@ -1858,6 +1880,7 @@ document.addEventListener('keydown', (e) => {
   if (isTyping()) return;
   if (e.key === ' ' && !spaceDown) { spaceDown = true; viewport.classList.add('space'); e.preventDefault(); return; }
   if (e.key === 'Escape') { hideMenu(); if (sketchEditing) stopSketch(); else if (tool) cancelConnect(); else clearSelection(); return; }
+  if (api.mobile && (e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'g') { e.preventDefault(); togglePageGuides(); return; }
   if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); deleteSelection(); return; }
   if (e.altKey && e.key === 'ArrowLeft') { const p = B().parentId; if (p) go(p); return; }
   if (e.key === 'Enter' && selected.size === 1) {
@@ -1930,6 +1953,7 @@ api.onMenu((cmd) => {
     case 'insert-template': openTemplates('insert'); break;
     case 'save-template': saveBoardAsTemplate(cur); break;
     case 'export-visual': openExport(); break;
+    case 'page-guides': togglePageGuides(); break;
     case 'settings': openSettings(); break;
     case 'settings-sync': openSettings('sync'); break;
     case 'settings-clipper': openSettings('clipper'); break;

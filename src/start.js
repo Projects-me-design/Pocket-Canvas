@@ -35,6 +35,8 @@
   }
   api.ready();
   applyRemote(); // changes from other computers that arrived while starting up
+  serverConnect(); // your Pocket-Canvas Server, if you've signed in to one
+  $('#server-state').onclick = () => openSettings('server');
   purgeBin();
   setInterval(purgeBin, 3600e3);
   api.onBackupDone((r) => toast(r && r.ok ? 'Backup saved' : (r && r.error) || 'Backup failed'));

@@ -2,7 +2,7 @@
 
 Copyright © 2026 project-tech-me · project-tech-me@protonmail.com
 
-The Android app uses the same boards, cards and screens as the desktop app, and it syncs with your computers the same way, through a shared folder. This guide covers:
+The Android app uses the same boards, cards and screens as the desktop app. It syncs with your computers the same way, through a shared folder, or through your own Pocket-Canvas Server, which also lets you share boards with other people. This guide covers:
 
 1. [Getting the app](#1-getting-the-app)
 2. [Installing it on a phone or tablet](#2-installing-it-on-a-phone-or-tablet)
@@ -24,7 +24,7 @@ GitHub builds the app (an `.apk` file) along with the desktop installers.
 1. On GitHub, open the repository's **Actions** tab.
 2. Choose **Build installers**, then **Run workflow**.
 3. When the run has finished, scroll down to **Artifacts**.
-4. Download **pocket-canvas-android**. It's a zip file containing `Pocket-Canvas-1.4.0-android.apk`.
+4. Download **pocket-canvas-android**. It's a zip file containing `Pocket-Canvas-1.5.0-android.apk`.
 
 **From a release:** when you publish a release by pushing a version tag (see [RELEASING.md](RELEASING.md)), the `.apk` is attached to the GitHub Release alongside the installers.
 
@@ -96,12 +96,10 @@ Install **Syncthing-Fork** from F-Droid (<https://f-droid.org>) or from its GitH
 ### Step 7: Turn on sync in Pocket-Canvas on the phone
 
 1. Tap **⋮** (top right), then **Sync settings**, then **Choose sync folder…**.
-2. Check the folder. It's filled in as `/storage/emulated/0/Pocket-Canvas Sync`, which is right if you followed step 5; otherwise type the location you wrote down. Tap **Use this folder**.
-3. Tap **OK** when Pocket-Canvas explains it needs access to your files. Android opens a settings page.
-4. Turn on **Allow access to manage all files** for Pocket-Canvas, then press **Back**.
-5. The sync page should say **✓ Sync is on**.
+2. Android's folder picker opens. Go to the `Pocket-Canvas Sync` folder from step 5 and tap **Use this folder**, then **Allow**.
+3. The sync page should say **✓ Sync is on**.
 
-**Why Pocket-Canvas asks for this:** since Android 11, an app can only read files that another app (here, Syncthing) wrote if you turn this on. Pocket-Canvas only reads and writes its own sync folder.
+Android gives Pocket-Canvas access to **that folder only**; the app can't see your other files. If you pick a folder with a different name, Pocket-Canvas makes a `Pocket-Canvas Sync` folder inside it, so choose the same place on your computer.
 
 ### Step 8: Try it
 
@@ -129,13 +127,14 @@ Everything works by touch:
 
 **Where things differ from the desktop app:**
 
-- **Share board as Markdown** and **Save a backup** open Android's share sheet, so you can save the file to Files or send it in a message.
+- **Export as picture or PDF** (including A4 or Letter pages), **Share board as Markdown** and **Save a backup** open Android's share sheet, so you can save the file to Files or send it in a message.
 - **Open** on a file card shares it to the app you choose.
 - These are only in the desktop app:
-  - export as picture or PDF
   - automatic backups to another folder
   - the browser extension
   - spelling settings (Android's keyboard checks spelling)
+
+**Without a sync folder:** you can use a **Pocket-Canvas Server** instead (**⋮ › Settings › Server**). It also lets you share boards with other people. See [server/README.md](../server/README.md).
 
 Your boards are saved inside the app's own storage. With sync on, there's also a copy in the sync folder.
 
@@ -143,11 +142,10 @@ Your boards are saved inside the app's own storage. With sync on, there's also a
 
 **"App not installed".** This usually means the phone already has a Pocket-Canvas signed with a different key. For example, you installed one you built yourself, then a GitHub one. Uninstall the old app first. If it held boards that aren't synced, save a backup from **⋮** first.
 
-**Sync says "Pocket-Canvas needs All files access".** Open **⋮ › Sync settings › Change folder…** and choose the folder again; Android shows the settings page once more. You can also go to Android **Settings › Apps › Pocket-Canvas › Permissions › Files** and allow it.
-
-**Sync says "The sync folder can't be found".**
-- Check that the folder location is exactly where Syncthing keeps it. Folder names are case-sensitive.
+**Sync says "The sync folder can't be reached".**
 - Check that Syncthing is running on both devices.
+- If you moved, renamed or deleted the folder, open **⋮ › Sync settings › Change folder…** and pick it again.
+- If you updated from a 1.4 test build, choose the folder once more. The app now uses Android's folder picker instead of "All files access".
 
 **Changes take a while to appear.**
 - Syncthing on Android may pause on mobile data or when the battery is low; check its settings.
@@ -163,21 +161,21 @@ The Android app is a [Capacitor](https://capacitorjs.com) app. It reuses the des
 
 | File | What it does |
 |---|---|
-| `mobile/api-android.js` | Provides the same `window.api` that `preload.js` gives the desktop app, using Capacitor's plugins. That covers files (Filesystem), links (Browser), sharing (Share), the Back button (App) and link previews (CapacitorHttp). It also contains the Android version of folder sync, with the same folder layout and merge as `lib/sync.js`. |
-| `src/mobile.js` | Touch gestures (on any touch screen), plus the Android ⋮ menu and Back button |
-| `scripts/build-android-web.js` | Copies `src/` to `build/android-www/` and adds `api-android.js` |
+| `mobile/api-mobile.js` | Provides the same `window.api` that `preload.js` gives the desktop app, using Capacitor's plugins. That covers files (Filesystem), links (Browser), sharing (Share), the Back button (App) and link previews (CapacitorHttp). It also contains folder sync for phones, with the same folder layout and merge as `lib/sync.js`, and export (drawn inside the page by `exportInPage()` in `src/export-ui.js`). Used for iPhone and iPad too (see [IOS.md](IOS.md)). |
+| `src/mobile.js` | Touch gestures (on any touch screen), plus the ⋮ menu and the Back button in the phone and tablet apps |
+| `scripts/build-mobile-web.js` | Copies `src/` to `build/mobile-www/` and adds `api-mobile.js` |
 | `capacitor.config.json` | App ID `com.projecttechme.pocketcanvas`, name, and where the web files are |
 | `android/` | The Android Studio project, generated by `npx cap add android` and kept in Git |
-| `android/app/src/main/java/…/AllFilesAccessPlugin.java` | A small plugin that checks for and asks for "All files access" |
+| `android/app/src/main/java/…/SyncFolderPlugin.java` | The sync folder: opens Android's folder picker (Storage Access Framework), keeps access to that folder after restarts, and lists, reads, writes and copies files in it |
 | `android/app/build.gradle` | Takes the version from `package.json`; signs with the test key, or with your own key when one is supplied |
 | `android/app/pocket-canvas-test.keystore` | A **test-only** signing key, so each test build installs over the last. Its password is in `build.gradle`, so it's not secret. Don't use it for Google Play. |
-| `tests/android-web.test.js` | Runs `build/android-www` in a phone-sized, touch-screen Chromium with a pretend phone, and tests saving, sync, sharing, touch gestures, Back and the layout |
+| `tests/mobile-web.test.js` | Runs `build/mobile-www` in a phone-sized, touch-screen Chromium with a pretend phone, and tests saving, the folder picker and sync, export, sharing, touch gestures, Back and the layout (and a pretend iPhone) |
 
 ### Commands
 
 ```bash
-npm run test:android    # the screens test (needs Playwright, as for the extension test)
-npm run android:sync    # rebuild build/android-www and copy it into android/
+npm run test:mobile     # the screens test (needs Playwright, as for the extension test)
+npm run android:sync    # rebuild build/mobile-www and copy it into android/
 npm run android:open    # open the project in Android Studio
 npm run android:apk     # build the APK (needs the Android SDK and Java 21)
 ```
@@ -217,4 +215,4 @@ The test key is fine for trying the app out. For releases you share with other p
 
 The next build is signed with your key. Phones that have a test build installed must uninstall it once before installing a build signed with your key.
 
-**Google Play:** Google only allows "All files access" for certain kinds of app. To publish there, sync would first need to switch to Android's folder picker (the Storage Access Framework) instead.
+**Google Play:** the app uses Android's folder picker and needs no special permissions, so nothing stands in the way of publishing it there. Sign it with your own key, then build an App Bundle with `./gradlew bundleRelease`.

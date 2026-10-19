@@ -2,13 +2,14 @@
 
 How Pocket-Canvas is built, how to run and test it, how to change it, and how to ship a release.
 
-Version 1.4.0 · © 2026 project-tech-me · project-tech-me@protonmail.com · MIT licence (logo excluded; see `ASSETS-LICENCE.md`)
+Version 1.5.0 · © 2026 project-tech-me · project-tech-me@protonmail.com · MIT licence (logo excluded; see `ASSETS-LICENCE.md`)
 
 ### Version history
 
 | Version | Main changes | Code to look at |
 |---|---|---|
-| **1.4** | Android app (Capacitor) with folder sync; text formatting; line styles and free-floating lines; − Row / − Column; 51 board-icon colours; board flush with the window; touch gestures | `mobile/api-android.js`, `android/`, `src/mobile.js`, `src/lines.js`, `src/text-format.js`, [ANDROID.md](ANDROID.md) |
+| **1.5** | Pocket-Canvas Server (accounts, own-device sync, shared boards with live editing and presence); paged PDF export (A4/Letter, portrait/landscape/best fit, page breaks); sketch shapes and pressure; YouTube/Vimeo/Dailymotion/Loom players; iPhone/iPad app; Safari extension build; Android folder picker (SAF) and in-page export | `server/`, `src/server-sync.js`, `src/export-ui.js` (`planPages`, `exportInPage`), `src/video-embed.js`, `ios/`, `mobile/api-mobile.js`, `SyncFolderPlugin.java`, [SERVER](../server/README.md), [IOS.md](IOS.md), [SAFARI.md](SAFARI.md) |
+| **1.4** | Android app (Capacitor) with folder sync; text formatting; line styles and free-floating lines; − Row / − Column; 51 board-icon colours; board flush with the window; touch gestures | `mobile/api-mobile.js` (was api-android.js), `android/`, `src/mobile.js`, `src/lines.js`, `src/text-format.js`, [ANDROID.md](ANDROID.md) |
 | **1.3** | Recycle bin (30 days, synced); delete buttons; password-protected boards (AES-256-GCM, PBKDF2); automatic backups to a chosen folder; spell checking with suggestions | `src/bin.js`, `src/lock.js`, `lib/backup.js`, spelling in `main.js` |
 | **1.2** | Fixed top-left corner (boards grow right/down); templates load top-left; 42 board icons + own pictures; Colour cards with typed codes and automatic names | `ORIGIN_PAD`/`normaliseOrigin()` in `app.js`, `src/board-icons/`, `src/colour-names.js` |
 | **1.1** | Folder sync; templates; comments; link previews; tables, sketches, audio/video; PDF/PNG export; browser extension | `src/merge.js`, `lib/sync.js`, `lib/clipper.js`, `lib/export.js`, `browser-extension/` |
@@ -28,12 +29,12 @@ Version 1.4.0 · © 2026 project-tech-me · project-tech-me@protonmail.com · MI
 6. [Main process and IPC reference](#6-main-process-and-ipc-reference)
 7. [The renderer](#7-the-renderer)
 8. [How the key behaviours work](#8-how-the-key-behaviours-work)
-9. [Sync](#9-sync)
+9. [Sync](#9-sync) (folders, and the Pocket-Canvas Server)
 10. [Recycle bin](#10-recycle-bin)
 11. [Password-protected boards](#11-password-protected-boards)
 12. [Backups](#12-backups)
 13. [Spelling](#13-spelling)
-14. [The browser extension and its local API](#14-the-browser-extension-and-its-local-api)
+14. [The browser extension and its local API](#14-the-browser-extension-and-its-local-api) (and Safari: [SAFARI.md](SAFARI.md))
 15. [Link previews and export](#15-link-previews-and-export)
 16. [Common changes, step by step](#16-common-changes-step-by-step)
 17. [Styling and themes](#17-styling-and-themes)
@@ -133,28 +134,34 @@ pocket-canvas/
 │   ├── settings-ui.js      Settings window, sync status label
 │   ├── sync-client.js      Applying changes from other computers; adding web clips
 │   ├── export-ui.js        Export dialog, and "export mode" drawing in the off-screen window
+│   ├── page-guides.js      Page guides on the board (A4/Letter outlines, crossing cards) and printing exactly those pages
+│   ├── server-sync.js      Pocket-Canvas Server: sign-in, live connection, own-device sync, shared boards, presence
+│   ├── video-embed.js      Video players in link cards (YouTube, Vimeo, Dailymotion, Loom)
 │   ├── mobile.js           Touch gestures (pan, pinch, press-and-hold); Android ⋮ menu and Back button
 │   ├── start.js            init(): runs last
 │   └── icon.png            Logo used at runtime
 ├── browser-extension/      The web clipper (Manifest V3); see its README
 ├── mobile/
-│   └── api-android.js      The Android app's window.api (instead of preload.js), incl. folder sync
+│   └── api-mobile.js       The phone/tablet apps' window.api (instead of preload.js): files, folder sync, export, sharing
 ├── android/                Android Studio project (Capacitor), kept in Git; see docs/ANDROID.md
-├── capacitor.config.json   Android app id, name and web folder (build/android-www)
+├── ios/                    Xcode project for iPhone and iPad (Capacitor, Swift Package Manager); see docs/IOS.md
+├── server/                 Pocket-Canvas Server: pocket-canvas-server.js, package.json, Dockerfile, docker-compose.yml + Caddyfile, README
+├── capacitor.config.json   App id, name and web folder (build/mobile-www) for Android and iOS
 ├── scripts/
 │   ├── build-extension.js  Zips the extension for the stores (no dependencies)
-│   └── build-android-web.js  Copies src/ + mobile/api-android.js to build/android-www
+│   └── build-mobile-web.js   Copies src/ + mobile/api-mobile.js to build/mobile-www
 ├── tests/
 │   ├── smoke.js            Core features, driving the real app
 │   ├── features.js         1.1 features, driving the real app (sync, export, clipper API…)
 │   ├── merge.test.js       Sync merge engine, plain Node
 │   ├── extension.test.js   Extension in Chromium (Playwright) + app
-│   ├── android-web.test.js Android app screens in a phone-sized Chromium with a pretend phone
+│   ├── mobile-web.test.js  Phone/tablet app screens in a phone-sized Chromium with a pretend phone (Android and iPhone)
+│   ├── server.test.js      Pocket-Canvas Server: accounts, devices, shared boards, presence, assets, restart
 │   ├── wait-ready.js       Waits for the app to finish starting (used by the tests)
 │   └── app-harness.js      Starts the app for extension.test.js
 ├── build/                  Installer icons and original logo artwork
-├── docs/                   USER-GUIDE.md, this file, ANDROID.md and RELEASING.md
-├── .github/workflows/build.yml   CI: all tests, then installers, Android APK and extension zip
+├── docs/                   USER-GUIDE.md, this file, ANDROID.md, IOS.md, SAFARI.md and RELEASING.md
+├── .github/workflows/build.yml   CI: all tests, then installers, Android APK, iOS app, Safari extension app and extension zip
 ├── package.json            Scripts, metadata and electron-builder config ("build" key)
 ├── FEATURES.md, README.md, LICENSE, ASSETS-LICENCE.md
 ```
@@ -237,6 +244,7 @@ Everything shared is one plain object, `store`:
       "icon": "star",                     // id from src/board-icons/icons.js (default "board")
       "iconAsset": "a1b2…png",            // optional: the user's own picture, overrides icon
       "lock": { "v": 1, "salt", "iter", "iv", "ct", "hint" },  // only on password-protected boards (base64)
+      "pages": { "show": true, "paper": "A4" | "Letter", "landscape": false, "scale": 1 | 0.75 | 0.5 },  // page guides (optional; syncs)
       "cards":  { "<cardId>": { … } },    // every card on this board, including ones inside columns
       "order":  ["<cardId>", …],          // stacking order (last = on top)
       "links":  [ { "id": "…", "from": "<cardId>" | null, "to": "<cardId>" | null,   // null = a free end…
@@ -283,12 +291,12 @@ Type-specific fields:
 | `note` | `html`: sanitised rich text. Besides the allowed tags, `<span style>` keeps only `color`, `font-family`, `font-size` (6–120 px), `font-weight`, `font-style` and `text-decoration` (`cleanStyle()` in `text-format.js`) |
 | `heading` | `text` |
 | `todo` | `title`, `items: [{ id, text, done }]` |
-| `link` | `url`, `title`; from the preview: `desc`, `site`, `image` (asset), `icon` (asset) |
+| `link` | `url`, `title`; from the preview: `desc`, `site`, `image` (asset), `icon` (asset); `player: false` shows a video link as a plain link (see `videoEmbed()` in `video-embed.js`) |
 | `image` | `asset` (empty = placeholder), `caption`, `source?` (page it was clipped from) |
 | `file` | `asset`, `name` (original file name), `size` (bytes) |
 | `media` | `asset`, `name`, `size`, `kind: 'audio' \| 'video'`, `caption`, `source?` |
 | `table` | `rows: string[][]`, `header: boolean` (first row styled as headings) |
-| `sketch` | `vw`, `vh` (drawing coordinate size, e.g. 640×440), `strokes: [{ c: colour, s: width, p: [x0,y0,x1,y1,…] }]` |
+| `sketch` | `vw`, `vh` (drawing coordinate size, e.g. 640×440), `strokes`: pen lines `{ c: colour, s: width, p: [x0,y0,x1,y1,…], pr?: [pressure per point, 0–1] }` (with `pr`, drawn as a filled outline whose width follows the pressure), or shapes `{ t: 'line' \| 'arrow' \| 'rect' \| 'ellipse', c, s, x1, y1, x2, y2, f?: 1 (light fill) }` |
 | `board` | `boardId`: the child board in `store.boards` (its title lives on the board) |
 | `column` | `title`, `items: [cardId, …]` in display order, `inbox?: true` (the "From the web" column) |
 | `swatch` | `hex` (`#rrggbb`), `title`, `nameAuto` (true while the name follows the colour; false once the user types a name) |
@@ -437,7 +445,32 @@ The first click selects a card; a second click on an already-selected card makes
 - Board `view`s and `ui` are never taken from the remote copy.
 - Tombstones older than 60 days are pruned.
 
+### The Pocket-Canvas Server (`server/`, `src/server-sync.js`)
+How to run it is in [server/README.md](../server/README.md). Design:
+- **One Node.js file, one dependency (`ws`).** HTTP for accounts and assets, a WebSocket at `/ws?token=…` for everything live. State is JSON files in `DATA_DIR`:
+  - `users.json`: scrypt-hashed passwords
+  - `tokens.json`: SHA-256 of each device's sign-in key
+  - `spaces.json`: shared boards
+  - `docs/<hash(scope)>/<hash(device)>.json`: the latest copy from each device
+  - `assets/<id>`: pictures and files
+- **The server never merges.** Like the sync folder, it stores the latest copy from each device per *scope* and relays it. Devices merge with `PCSync.merge`, through the same `applyRemote()` as folder sync, so the two behave identically and can be used together.
+- **Scopes:**
+  - `me` is all of one person's boards (`PCSync.syncState`), relayed to their other devices.
+  - A **space** (`sp-<boardId>`) is one shared board and the boards inside it. `extractSpace(sealed, root)` sends just that subtree with the root's `parentId` set to null, so nothing else leaves the device.
+  - On arrival, `composeSpace(local, root, remote)` builds a whole-store copy: your boards, with that subtree replaced by the incoming one, and the root under its local parent (or Home, for a newcomer). That copy is then merged normally. Per-card latest-change-wins applies, and the merge's tidy pass gives a newcomer a board card for it.
+- **Messages:**
+  - `hello` → `welcome` (account, spaces), followed by catch-up `doc`s and `presence`.
+  - `doc` (scope, state) → stored, relayed, and answered with `saved`.
+  - `share` (root, title, names, state) creates or updates a space; members get `space` and the latest `doc`s.
+  - `unshare` (owner) and `leave` → `unshared`.
+  - `presence` (space, board, card, editing) → `presence` lists for the space.
+- **Sending:** `flushSave()` calls `serverOnSaved(sealed)` after every save (~0.4 s after a change). Copies identical to the last one sent are skipped. Assets referenced by the copy are uploaded if `/api/assets/missing` says so. Incoming copies trigger `serverFetchAssets()`, which uses the `readAsset` / `writeAsset` / `hasAssets` API on both desktop and mobile.
+- **Presence:** `serverPresence()` (from `refreshSelection()` and focus changes, throttled) sends which board and card you're on; `updatePeers()` draws the initials in `#peers` and outlines cards with `.card.peer`.
+- **Rules:** a board counts as shared while at least one other person is in it (`isSharedRoot`). Home and boards with passwords can't be shared, and shared boards can't get a password (`lockMenuItems`).
+- **Content Security Policy:** `connect-src` allows `https:`, `http:`, `wss:` and `ws:` so the app can reach the server you type in. On Android, `allowMixedContent` and `usesCleartextTraffic` let a home-network `http://` server work. On iOS, `NSAllowsLocalNetworking` does the same.
+
 ### Edge cases worth knowing
+- Shared boards: moving a card *out of* a shared board (into one of your private boards) removes it for the others. Typing in the same card at the same moment: the later save wins, so the other person's text in that card is replaced.
 - Clocks: "latest change wins" uses each computer's clock. A badly wrong clock can make its edits win or lose unexpectedly.
 - While the user is typing, drawing or dragging, incoming changes wait (`busy()` in `sync-client.js`) and are applied straight after.
 - Importing a backup on a synced computer replaces everything: items not in the backup are tombstoned and deleted on other computers too.
@@ -516,6 +549,34 @@ Rules: any request whose `Origin` header is present but isn't an extension schem
 2. `exportBoard()` opens an **invisible off-screen** `BrowserWindow` (`webPreferences.offscreen: true`, so it can be larger than any screen) loading `index.html?export=<boardId>&format=…&quality=…&background=…&theme=…`.
 3. In that page, `EXPORT_MODE` is set: `runExportMode()` adds the `export-mode` CSS class (hides app chrome, buttons and empty placeholders), loads the store, renders the board, waits for images, video frames and fonts, measures every card and line, sets the zoom (PNG high = 2×; capped at 16,000 px for PNG and 19,000 px for PDF) and reports the size with `exportReady()`.
 4. The main process resizes the window and either `capturePage()` → PNG or `printToPDF()` with a custom page size → one-page PDF.
+
+**PDF for printing (`format: 'pages'`):**
+- `layoutPages()` uses `planPages(items, box, printable)`:
+  - Scale = page width ÷ board width (never above 1).
+  - Cards are walked top to bottom. When one would cross its page's bottom edge, it and everything after it move down to the next page's top, like inserting a page break. Free line points move with the break above them.
+  - Portrait and landscape are both planned for *Best fit*: fewer pages wins, then the larger scale.
+- The page lays itself out as one strip exactly `pages × printable height` tall (`html.export-paged`).
+- `printToPDF({ pageSize: 'A4' | 'Letter', landscape, margins })` cuts it into pages. Because no card crosses a multiple of the printable height, none is cut.
+
+**In the page (Android, iPhone, iPad): `exportInPage(opts)`**
+- The phone apps have no off-screen window, so the board is drawn in the page itself:
+  1. The current store is snapshotted, and the board is laid out with the same `layoutPages()` (for pages).
+  2. `#world` is cloned into an SVG `<foreignObject>`, with `styles.css` (in CDATA) and the current CSS variables inlined, and pictures turned into `data:` URLs.
+  3. The SVG is drawn into canvases.
+- Results:
+  - **PNG:** `canvas.toBlob`.
+  - **PDF:** `makePdf()`, a small PDF writer that puts one JPEG per page.
+- The store and view are restored afterwards.
+
+**Page guides (`src/page-guides.js`):**
+- Settings are on the board (`b.pages`, part of `boardMeta` in `merge.js`, so they sync). `pageSetup(b)` fills in defaults.
+- `guidePageSize(setup)` is the printable area (paper minus `PAGE_MARGIN` on each side) in CSS px, divided by `scale` for board units.
+- `planGuidePages(setup, boardShapes())` tiles pages from (0, 0), row by row, over every card and line. It numbers the pages that have something on them and lists cards whose rectangle crosses a page edge.
+- `drawPageGuides()` draws `#page-guides` (first child of `#world`, under everything), sets `.crosses-page` on crossing cards and fills `#pages-chip`. It runs through `updatePageGuides()` (once per frame) from `renderBoard()`, `drawLinks()`, typing in cards and pointer-up.
+- **Export with `layout: 'guides'`:**
+  - **Desktop:** `layoutGuidedPages()` builds `#print-pages`, with one `.print-page` per numbered page (exactly printable width × height, `contain: strict` so nothing overflows and Chromium doesn't shrink the print). Each holds a clone of `#world` translated to that page. `printToPDF` then gives one sheet per block.
+  - **Phones:** `guidedPdfInPage()` sets the view to each page in turn and draws it with `worldToImage()`.
+- The guides, the chip and the orange outlines are never drawn in exports.
 
 Saving and syncing are disabled in export mode (`scheduleSave`/`flushSave` return early).
 
@@ -599,9 +660,10 @@ Add an entry to `BUILTIN_TEMPLATES` in `templates.js` with `id` (`builtin-…`),
 |---|---|---|
 | `npm run test:merge` | Sync merge engine: concurrent adds, same-card edits, deletes vs later edits, moves between boards, deleted boards, two Home boards, columns, lines (incl. free lines and styles), templates, views, idempotence | 20 |
 | `npm test` | Core board features with real mouse/keyboard input | 23 |
-| `npm run test:features` | Sync with a simulated second computer (incoming, outgoing, assets, status), tables, sketch drawing/eraser/undo, audio playback and Stop, comments, link previews against a local test website, templates (built-in and saved), picture placeholders, PNG and PDF export, the clipper API (security, text, screenshot, media, board choice), the top-left corner (scroll limits, card limits, older boards, fit, templates at top-left), board icons (all files load, picker, sidebar, sync) Colour cards (typed and picked codes, automatic names, your own names kept, dragging), deleting and the Recycle bin (button, restore with lines, boards, 30-day purge, sync), password-protected boards (encryption on disk and in sync, wrong/right password, nested boards, re-lock on leaving, encrypted bin items, change password), backups (automatic, now, assets, encryption kept, pruning, restore, safety backup) and spelling (defaults, on/off, languages, right-click menu); 1.4: board flush with the window, table − Row/− Column (highlight, cell chosen, last, minimum, undo), 51 icon colours and typed codes, lines (free ends, arrows both/none, dotted/dashed/thick/straight, remembered style, drag line, drag end onto a card, attached end follows, drag-to-draw, copy, menu, detach), text formatting (bar, bold/underline/strike/size/colour/font on the selection only, whole note, sanitising, whole-card styles on a heading, Ctrl+B, clear), colour names (exact names, descriptions, renaming older cards) | 174 |
+| `npm run test:features` | Sync with a simulated second computer (incoming, outgoing, assets, status), tables, sketch drawing/eraser/undo, audio playback and Stop, comments, link previews against a local test website, templates (built-in and saved), picture placeholders, PNG and PDF export, the clipper API (security, text, screenshot, media, board choice), the top-left corner (scroll limits, card limits, older boards, fit, templates at top-left), board icons (all files load, picker, sidebar, sync) Colour cards (typed and picked codes, automatic names, your own names kept, dragging), deleting and the Recycle bin (button, restore with lines, boards, 30-day purge, sync), password-protected boards (encryption on disk and in sync, wrong/right password, nested boards, re-lock on leaving, encrypted bin items, change password), backups (automatic, now, assets, encryption kept, pruning, restore, safety backup) and spelling (defaults, on/off, languages, right-click menu); 1.4: board flush with the window, table − Row/− Column (highlight, cell chosen, last, minimum, undo), 51 icon colours and typed codes, lines (free ends, arrows both/none, dotted/dashed/thick/straight, remembered style, drag line, drag end onto a card, attached end follows, drag-to-draw, copy, menu, detach), text formatting (bar, bold/underline/strike/size/colour/font on the selection only, whole note, sanitising, whole-card styles on a heading, Ctrl+B, clear), colour names (exact names, descriptions, renaming older cards); 1.5: paged PDF (planner never cuts a card, page breaks, scaling, A4 portrait/landscape page sizes, best fit), sketch shapes (rectangle, Shift-level arrow, filled ellipse), pen pressure, erasing shapes, video links (recognising YouTube/Vimeo/Dailymotion/Loom, start times, play, stop, plain link, CSP), page guides (menu, A4 sizes from the top-left corner, numbering, chip, kept on the board, crossing outline on and off, blank pages, landscape, Letter, 50%, sync, export dialog default, printed page count and size, off again), and the app against a real Pocket-Canvas Server (create account, Live, own devices both ways, share by name, only the shared board sent, badges, someone else's edits, presence outline, your edits reach them, their pictures arrive, no passwords on shared boards, leaving, sign out) | 227 |
 | `npm run test:extension` | The extension loaded into Chromium: manifest accepted, pairing, board list, popup, right-click saves, a web page blocked from the API, disconnect | 13 |
-| `npm run test:android` | The Android app's screens (`build/android-www`) in a phone-sized touch Chromium with a pretend phone: start-up, saving to app storage, assets, ⋮ menu, Android settings, sync on/off, writing to and reading from the sync folder (cards and pictures), link previews, sharing, one-finger pan, pinch zoom, press-and-hold menu, Back button, phone layout | 31 |
+| `npm run test:mobile` | The phone/tablet apps' screens (`build/mobile-www`) in a phone-sized touch Chromium with a pretend phone: start-up, saving to app storage, assets, ⋮ menu, settings, the Android folder picker (cancel, choose), writing to and reading from the sync folder (cards and pictures), link previews, sharing, export as PNG and as A4 PDF pages, page guides from ⋮ and printing them, one-finger pan, pinch zoom, press-and-hold menu, Back button, phone layout; and as an iPhone: start-up, sync settings pointing to the server | 40 |
+| `npm run test:server` | Pocket-Canvas Server on its own: join code, password rules, unique names, sign-in, hashed storage, own-device relay and catch-up, privacy between accounts, sharing (invite, first copy, edits both ways, outsiders refused), presence (typing, leaving), assets (missing list, upload, download, bad ids), restart keeps everything, leaving, bad keys | 30 |
 
 Each test runs the **real app** with a throw-away data folder and exits non-zero on failure.
 
@@ -657,7 +719,16 @@ Code signing switches on by itself. When the signing secrets are present, the wo
 - **Release:** bump `package.json`, commit, then `git tag v1.4.0 && git push origin v1.4.0`. The installers and the extension zip are attached to a GitHub Release for that tag. See [RELEASING.md, part 1](RELEASING.md#part-1--releasing-with-github-actions) for every step, and for what to do when a step fails.
 
 ### The Android app
-`npm run android:sync` rebuilds `build/android-www` from `src/` and copies it into `android/`; `npm run android:open` opens Android Studio. CI builds the APK in the **android** job. Everything about it, including signing with your own key, is in [ANDROID.md](ANDROID.md). Anything you add to `window.api` in `preload.js` needs a matching entry in `mobile/api-android.js` (or a sensible "desktop only" answer), and `npm run test:android` should still pass.
+`npm run android:sync` rebuilds `build/mobile-www` from `src/` and copies it into `android/`; `npm run android:open` opens Android Studio. CI builds the APK in the **android** job. Everything about it, including signing with your own key, is in [ANDROID.md](ANDROID.md). Anything you add to `window.api` in `preload.js` needs a matching entry in `mobile/api-mobile.js` (or a sensible "desktop only" answer), and `npm run test:mobile` should still pass.
+
+### The iPhone and iPad app
+`npm run ios:sync`, then `npm run ios:open` (on a Mac with Xcode). CI builds a Simulator app and an unsigned `.ipa` in the **ios** job; see [IOS.md](IOS.md).
+
+### The Safari extension
+The **safari** job runs Apple's `safari-web-extension-converter` on `browser-extension/`, saves its report, and builds the Mac app that carries the extension; see [SAFARI.md](SAFARI.md).
+
+### The server
+`npm run server` runs it from the repository (after `cd server && npm install`). Its version is in `server/package.json` and `VERSION` in the script; keep them in step with the app.
 
 ### Publishing the extension
 See `browser-extension/README.md` for each store's submission page, the permission justifications and the privacy answers.
@@ -700,6 +771,20 @@ People's boards live in `pocket-canvas-data.json` and in sync folders for years,
 
 | Area | Today | Idea |
 |---|---|---|
+| Performance | Whole-board re-render; whole-store undo snapshots; whole-store sync copies | Fine for hundreds of cards per board. For thousands: render only visible cards, diff-based history, per-board copies. |
+| Live editing | Latest change per card wins; incoming changes wait while you type | Character-level merging inside notes (CRDT) |
+| Sharing | Everyone in a shared board can edit; accounts managed in the server's files | Viewer-only sharing; an admin page for accounts; invites by link |
+| Locked boards | Contents encrypted; title, icon and asset files are not; can't be shared | Encrypt asset files too; end-to-end encrypted sharing |
+| Assets | Deleted cards' files stay in `assets/` (so undo and sync work) | "Clean up unused files" command |
+| Backup | JSON backup excludes images and files | Export a single `.zip` with data and assets |
+| Export | One board at a time; pages scale to the page width | Include sub-boards; choose a scale and split wide boards across pages too |
+| Sketch | Pen with pressure, shapes, stroke eraser | Text in sketches, lasso select, moving shapes after drawing |
+| Videos | YouTube, Vimeo, Dailymotion, Loom | More sites; a privacy setting to turn players off |
+| iPhone/iPad | Syncs through the server only; unsigned builds | Folder sync through the Files app (security-scoped bookmarks); App Store |
+| Extension | Chromium browsers, Firefox, Safari (Mac, unsigned) | Signed Safari release; Safari on iPhone and iPad |
+| Accessibility | Mouse-first; keyboard covers the basics | Focus navigation between cards, ARIA labels, screen-reader testing |
+
+---|---|---|
 | Performance | Whole-board re-render; whole-store undo snapshots; whole-store sync file | Fine for hundreds of cards per board. For thousands: render only visible cards, diff-based history, per-board sync files. |
 | Sync | Folder-based, polling every 4 s, latest-change-wins per card (per whole board for locked boards) | Optional self-hosted sync server with live updates; merge text edits within a note rather than whole-card |
 | Locked boards | Contents encrypted; title, icon and asset files are not | Encrypt asset files too; optional auto-lock after inactivity |

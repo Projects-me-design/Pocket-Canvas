@@ -6,6 +6,15 @@ This guide is for anyone using the app. You don't need any technical knowledge.
 
 ### What's new
 
+**Version 1.5**
+- **Share boards with other people** and edit them together, live, through your own **Pocket-Canvas Server**, which also syncs your devices without a sync folder ([section 26](#26-sharing-boards-and-your-own-server))
+- **PDF for printing**: A4 or Letter pages, portrait, landscape or best fit, and cards are never cut in half ([section 20](#20-exporting-pdf-picture-and-markdown))
+- **Page guides**: dashed A4 or Letter page outlines on the board, so you can lay things out for printing; turn them on and off with the page button or **Ctrl+Shift+G** ([section 20](#page-guides))
+- **Sketches:** pressure-sensitive pens, plus lines, arrows, rectangles and ellipses ([section 4](#sketch))
+- **YouTube, Vimeo, Dailymotion and Loom videos** play inside link cards ([section 4](#link))
+- **iPhone and iPad app** ([section 27](#27-iphone-and-ipad)), and the web clipper for **Safari** on the Mac
+- **Android:** choose the sync folder with Android's own folder picker (no "All files access"), and export pictures and PDFs
+
 **Version 1.4**
 - **Pocket-Canvas for Android**, which syncs with your computers ([section 25](#25-the-android-app))
 - **Text formatting**: font, size, bold, italic, underline, strikethrough and colour ([section 4](#text-formatting))
@@ -31,7 +40,7 @@ This guide is for anyone using the app. You don't need any technical knowledge.
 **Version 1.1**
 - Sync between computers, templates, comments, link previews, tables, audio and video, sketches, PDF/picture export and the browser extension
 
-Version 1.4.0 · © 2026 project-tech-me · project-tech-me@protonmail.com
+Version 1.5.0 · © 2026 project-tech-me · project-tech-me@protonmail.com
 
 ---
 
@@ -62,6 +71,8 @@ Version 1.4.0 · © 2026 project-tech-me · project-tech-me@protonmail.com
 23. [Troubleshooting and questions](#23-troubleshooting-and-questions)
 24. [Uninstalling](#24-uninstalling)
 25. [The Android app](#25-the-android-app)
+26. [Sharing boards and your own server](#26-sharing-boards-and-your-own-server)
+27. [iPhone and iPad](#27-iphone-and-ipad)
 
 ---
 
@@ -69,7 +80,7 @@ Version 1.4.0 · © 2026 project-tech-me · project-tech-me@protonmail.com
 
 ### Windows
 
-1. Double-click the installer, for example **Pocket-Canvas Setup 1.4.0.exe**.
+1. Double-click the installer, for example **Pocket-Canvas Setup 1.5.0.exe**.
 2. If Windows shows **"Windows protected your PC"**, click **More info**, then **Run anyway**. This message appears because the app is new and isn't yet registered with Microsoft. It doesn't mean anything is wrong.
 3. Choose whether to install for just you or everyone, pick a folder (or keep the suggested one) and click **Install**.
 4. Open Pocket-Canvas from the desktop shortcut or the Start menu.
@@ -80,14 +91,14 @@ Installing a new version over an old one keeps all your boards.
 
 **AppImage (works on most Linux systems, no installing needed)**
 
-1. Right-click **Pocket-Canvas-1.4.0.AppImage** → **Properties** → **Permissions**, and tick **Allow executing file as program**.
+1. Right-click **Pocket-Canvas-1.5.0.AppImage** → **Properties** → **Permissions**, and tick **Allow executing file as program**.
 2. Double-click it to start.
 3. On Ubuntu 22.04 or newer, if nothing happens, open a Terminal and run `sudo apt install libfuse2`, then try again.
 
 **.deb package (Ubuntu, Debian, Linux Mint and similar)**
 
-1. Double-click **pocket-canvas_1.4.0_amd64.deb** to open it in your Software app, then click **Install**.
-   Or, in a Terminal in the same folder, run: `sudo apt install ./pocket-canvas_1.4.0_amd64.deb`
+1. Double-click **pocket-canvas_1.5.0_amd64.deb** to open it in your Software app, then click **Install**.
+   Or, in a Terminal in the same folder, run: `sudo apt install ./pocket-canvas_1.5.0_amd64.deb`
 2. Find **Pocket-Canvas** in your applications menu.
 
 ### macOS
@@ -182,6 +193,11 @@ While you type in any card, a small **formatting bar** appears just above it:
 - Click the title to rename it.
 - Right-click the card for **Edit web address**, **Refresh preview** or **Remove preview picture**.
 - To make the preview, the app briefly visits the page. If you'd rather it didn't, turn off **Link previews** in [Settings](#21-settings-and-dark-mode).
+- **Videos:** a link to a **YouTube** (including Shorts), **Vimeo**, **Dailymotion** or **Loom** video becomes a small player.
+  - Press **▶** to watch it in the card; **■** stops it. A start time in the link (such as `&t=1m30s`) is kept.
+  - Nothing is loaded from the video site until you press Play, and YouTube videos use YouTube's privacy-enhanced player.
+  - **Open on YouTube** (or the other site) opens it in your web browser.
+  - Right-click › **Show as link card** turns it back into a normal link; **Show as video player** switches back.
 
 ### Image (picture)
 - Use the **Image** tool to pick pictures, or just paste or drag them in.
@@ -219,12 +235,15 @@ A blank sheet to draw on: diagrams, doodles, storyboard frames, handwriting.
 - Add one with the **Sketch** tool (or press **S**). You're straight into drawing mode.
 - To draw on a sketch later, **double-click** it (or select it and press **Enter**).
 - In drawing mode, a pen bar appears at the top of the board:
+  - **tools:** pen, straight line, arrow, rectangle and ellipse. For shapes, drag from one corner to the other. Hold **Shift** for a perfect square or circle, or to keep lines level, upright or at 45°.
+  - **Fill:** rectangles and ellipses get a light tint of their colour
   - **colours** (including white, to draw over things)
   - **sizes**: fine, medium, thick and marker
-  - **Eraser**: drag over a line to remove it
+  - **Eraser**: drag over a line or shape to remove it
   - **Undo line** and **Clear**
   - **Done** (or press **Esc**, or click elsewhere on the board) when you've finished
 - Works with a mouse, touchpad, touch screen or drawing pen.
+- **Pressure-sensitive:** with a pen that senses pressure (such as a Wacom pen, Surface Pen, S Pen or Apple Pencil), pressing harder draws a thicker line. A mouse draws at an even thickness.
 - Drawings stay crisp however much you zoom or resize the card.
 
 ### Board
@@ -459,6 +478,7 @@ Leave notes to yourself, or questions and answers, on any card without changing 
 | Zoom in or out | Hold **Ctrl** and scroll, or use **−** / **+** in the top bar |
 | Back to 100% | Click the percentage in the top bar, or **Ctrl+0** |
 | See everything on the board | The **⤢** button, or **Ctrl+1**: shows everything from the top-left corner |
+| See where printed pages fall | The **page button**, or **Ctrl+Shift+G** ([page guides](#page-guides)) |
 | Hide the sidebar for more room | The **☰** button, or **Ctrl+\\** |
 
 **On a touch screen:** drag one finger on an empty part of the board to move around, pinch with two fingers to zoom, and press and hold anything for its right-click menu.
@@ -551,13 +571,13 @@ That's it. Within a few seconds of a change on one computer (plus however long y
 
 ## 18. The browser extension
 
-The **Pocket-Canvas Web Clipper** saves things from your web browser straight onto your boards. It works in **Chrome, Microsoft Edge, Brave, Opera, Vivaldi and Firefox**.
+The **Pocket-Canvas Web Clipper** saves things from your web browser straight onto your boards. It works in **Chrome, Microsoft Edge, Brave, Opera, Vivaldi and Firefox**, and in **Safari** on the Mac (installing it in Safari is explained in [the Safari guide](SAFARI.md)).
 
 ### Installing it
 
 **From your browser's add-on store** (when published): search for *Pocket-Canvas*.
 
-**Without a store**, from the extension zip file (`pocket-canvas-web-clipper-1.4.0.zip`):
+**Without a store**, from the extension zip file (`pocket-canvas-web-clipper-1.5.0.zip`):
 
 *Chrome, Edge, Brave, Opera, Vivaldi*
 1. Unzip the file into a folder you'll keep.
@@ -635,12 +655,36 @@ Pictures and files are kept once in the backup folder and shared between backups
 **File › Export Board as Picture or PDF…** (Ctrl+Shift+E), or right-click an empty spot › **Export board as picture or PDF…**
 
 - **Picture (PNG):** for sharing in messages, documents and presentations. Choose **Standard** or **High** quality.
-- **PDF document:** for printing and email. Text stays sharp however far you zoom in.
+- **PDF, one big page:** the whole board on a single page, for email and viewing on screen. Text stays sharp however far you zoom in.
+- **PDF for printing:** the board on **A4** or **Letter** pages. With [page guides](#page-guides) on, it prints exactly the pages the guides show. Otherwise (**Fit automatically**):
+  - Choose **Portrait**, **Landscape**, or **Best fit**, which picks whichever needs fewer pages, then the one with bigger cards.
+  - The board is scaled to fit the page width (never enlarged).
+  - **A card that would be cut by the edge of a page moves to the top of the next page**, along with everything below it, just like a page break in a document.
+  - A card taller than a whole page starts on a fresh page and carries on over the next.
 - **Background:** the board's colour, white, or (for pictures) transparent.
 
-The whole board is included, at full size, on a single page, however big it is. It looks exactly as it does on screen, including pictures, sketches, tables and lines; selection outlines and buttons are left out. When it's done, click **Show file** to find it.
+Pictures and one-page PDFs include the whole board, at full size, however big it is. It looks exactly as it does on screen, including pictures, sketches, tables and lines; selection outlines and buttons are left out. When it's done, click **Show file** to find it.
 
 Only the board you're on is exported, not the boards inside it. Export those separately.
+
+### Page guides
+Page guides show where the printed pages fall, so you can arrange a board to print nicely.
+
+- **To turn them on or off:**
+  - click the **page button** at the top right (next to ⤢)
+  - or press **Ctrl+Shift+G**
+  - or right-click an empty spot › **Show page guides**
+  - on Android, iPhone and iPad: **⋮ › Page guides…**
+- **What you see:** dashed outlines of pages, starting at the board's top-left corner and going right and down, numbered *Page 1*, *Page 2* and so on in printing order. Pages with nothing on them say *Blank – not printed*.
+- **Cards that cross a page edge** get an orange outline. The label at the bottom left of the board counts them, along with the number of pages. Move or resize a card until its outline disappears and it will print in one piece.
+- **Settings**, from the page button's menu:
+  - **A4** or **Letter**
+  - **Portrait** or **Landscape**
+  - **Size:** *Actual size*, *Smaller (75%)* or *Smallest (50%)*. Smaller sizes fit more of the board on each page.
+  - **Print these pages as a PDF…**
+- Each board remembers its own page guide settings, and they sync with the board.
+
+**Printing what the guides show:** with page guides on, the export window chooses **PDF for printing › Follow the page guides** for you. Each page on the board becomes one page in the PDF, exactly as shown; blank pages are left out. Choose **Fit automatically** instead to have Pocket-Canvas arrange the pages for you, as described above.
 
 ### As Markdown
 **File → Export Board as Markdown…** saves the board you're looking at, and every board inside it, as a text file. Markdown files open in any text editor and many note-taking apps (such as Obsidian, Joplin or Notion). To-do lists keep their ticks, links stay clickable and tables stay tables.
@@ -658,6 +702,7 @@ Open **Settings** with the **⚙** button at the bottom of the sidebar, **File �
 - **Spelling**: see [Spelling](#15-spelling)
 - **Backups**: see [Backing up and moving to another computer](#19-backing-up-and-moving-to-another-computer)
 - **Sync**: see [Syncing between your computers](#17-syncing-between-your-computers)
+- **Server**: sign in to a Pocket-Canvas Server, see [Sharing boards and your own server](#26-sharing-boards-and-your-own-server)
 - **Browser extension**: allow or block the extension, see and disconnect connected browsers, and change the port (only if another program needs it)
 
 Also:
@@ -721,6 +766,7 @@ On a Mac, use **Cmd** wherever this says **Ctrl**.
 | Ctrl+= / Ctrl+− | Zoom in / out |
 | Ctrl+0 | Zoom to 100% |
 | Ctrl+1 | Fit everything on screen |
+| Ctrl+Shift+G | Page guides on / off |
 | Alt+← | Go up to the parent board |
 | Ctrl+F | Search all boards |
 | Ctrl+Shift+E | Export board as picture or PDF |
@@ -811,12 +857,65 @@ Uninstalling **doesn't delete your boards**. If you want those gone too, delete 
 Pocket-Canvas also runs on Android phones and tablets (Android 7 or newer), with the same boards, cards, templates, comments, Recycle bin and password-protected boards. With sync, your phone and computers stay the same.
 
 - **Installing** the app, and **setting up sync step by step** with the free Syncthing app, are covered in the [Android guide](ANDROID.md).
+- **The sync folder** is chosen with Android's own folder picker, so Pocket-Canvas can only see that one folder. A Pocket-Canvas Server ([section 26](#26-sharing-boards-and-your-own-server)) works too.
 - **Using it:**
   - drag one finger to move around, pinch to zoom, tap to select and tap again to edit
   - press and hold for the right-click menu
-  - **☰** shows your boards; **⋮** has templates, the Recycle bin, backups and settings
+  - **☰** shows your boards; **⋮** has templates, export, the Recycle bin, backups and settings
   - **Back** closes windows and steps out of boards
-- **Desktop only:** exporting as a picture or PDF, automatic backups to another folder, the browser extension and spelling settings.
+- **Exports** (pictures, PDFs, Markdown and backups) open Android's share sheet.
+- **Desktop only:** automatic backups to another folder, the browser extension and spelling settings.
+
+---
+
+## 26. Sharing boards and your own server
+
+A **Pocket-Canvas Server** is a small program you (or someone you trust) run, for example on a home server. It does two things:
+
+- **Keeps your boards in step on all your devices**: computers, Android, iPhone and iPad, without a sync folder.
+- **Lets you share a board with other people** so you can work on it together, live.
+
+Setting up the server is explained in [server/README.md](../server/README.md).
+
+### Signing in
+1. Open **Settings › Server**.
+2. Type the server's address.
+3. **The first time:** type a name, a password and the **join code** (ask whoever runs the server), then click **Create account**.
+4. **On your other devices:** use the same name and password and click **Sign in**.
+
+The top bar shows **● Live** while you're connected, or **Offline** while the server can't be reached. Changes made offline are sent when it's back.
+
+**Keep all my boards in step through this server** is on unless you turn it off; it works alongside a sync folder if you have one.
+
+### Sharing a board
+1. Right-click a board's card (or the board in the sidebar) and choose **Share with people…**.
+2. Tick the people to share with, and click **Share**.
+
+The board appears on their Home board straight away, and boards inside it are shared too. Shared boards have a blue **people** badge.
+
+### Working together
+- **Changes appear for everyone in about a second.** The same goes for cards, lines, pictures and files.
+- The **coloured initials** in the top bar show who else is on the board.
+- The card someone is on is **outlined in their colour** with their name, plus **✎** while they're typing.
+- **If two people change the same card at the same moment**, the later change wins. Changes to different cards are all kept.
+- **While you're typing**, other people's changes wait until you finish, so your text isn't disturbed.
+
+### Changing who it's shared with
+- Right-click the board › **Shared with…**.
+- **The owner** can tick or untick people, or **Stop sharing**.
+- **Anyone else** can **Leave**.
+- Everyone keeps their own copy, which carries on as a normal board.
+
+Boards with a password can't be shared, and shared boards can't be given a password.
+
+---
+
+## 27. iPhone and iPad
+
+Pocket-Canvas runs on iPhone and iPad (iOS 15 or newer), just like the Android app. It has touch gestures, the **⋮** menu, export through the share sheet, and Apple Pencil pressure in sketches.
+
+- **Installing:** see the [iPhone and iPad guide](IOS.md). Until the app is in the App Store, you install it with your own Apple Account using a tool such as Sideloadly or AltStore, or from Xcode on a Mac.
+- **Syncing:** use a Pocket-Canvas Server ([section 26](#26-sharing-boards-and-your-own-server)). iPhones and iPads don't have the shared folders that sync apps use.
 
 ---
 

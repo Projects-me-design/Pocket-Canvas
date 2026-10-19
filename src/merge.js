@@ -19,7 +19,7 @@
   const TOMBSTONE_DAYS = 60;
   const clone = (o) => JSON.parse(JSON.stringify(o));
   const strip = (o) => { const { _mt, ...rest } = o; return rest; };
-  const boardMeta = (b) => ({ title: b.title, parentId: b.parentId, color: b.color, icon: b.icon, iconAsset: b.iconAsset, lock: b.lock, order: b.order });
+  const boardMeta = (b) => ({ title: b.title, parentId: b.parentId, color: b.color, icon: b.icon, iconAsset: b.iconAsset, lock: b.lock, order: b.order, pages: b.pages });
 
   // Flatten a store into keyed items with a comparable fingerprint.
   function items(state) {
@@ -120,6 +120,7 @@
         id: src.id, title: src.title, parentId: src.parentId ?? null, color: src.color,
         ...(src.icon ? { icon: src.icon } : {}), ...(src.iconAsset ? { iconAsset: src.iconAsset } : {}),
         ...(src.lock ? { lock: clone(src.lock) } : {}),
+        ...(src.pages ? { pages: clone(src.pages) } : {}),
         cards: {}, order: [...(src.order || [])], links: [],
         view: clone((localBoard && localBoard.view) || src.view || { x: 40, y: 40, z: 1 }),
         _mt: src._mt || 0

@@ -46,6 +46,7 @@ async function cardAction(act, c, el, e) {
       break;
     }
     case 'delete-card': selectOnly(c.id); deleteSelection(); break;
+    case 'video-play': case 'video-stop': case 'video-open': videoAction(act, c); break;
     case 'media-play': mediaToggle(c.id); break;
     case 'media-stop': mediaStop(c.id); break;
     case 'media-mute': mediaMute(c.id); break;
@@ -146,7 +147,16 @@ function tableMenuItems(c, r, k) {
 // ======================================================================
 let sketchEditing = null;
 let sketchStroking = false;
-const sketchTool = { color: '#2b2823', size: 4, eraser: false };
+// mode: 'pen' | 'line' | 'arrow' | 'rect' | 'ellipse'; eraser switches the eraser on instead
+const sketchTool = { color: '#2b2823', size: 4, eraser: false, mode: 'pen', fill: false };
+const SKETCH_MODES = [['pen', 'Pen'], ['line', 'Line'], ['arrow', 'Arrow'], ['rect', 'Rectangle'], ['ellipse', 'Ellipse']];
+const SKETCH_MODE_ICONS = {
+  pen: '<svg viewBox="0 0 24 24"><path d="M4 18c3-1 4-6 7-7s3 4 5 3 3-6 4-8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+  line: '<svg viewBox="0 0 24 24"><path d="M5 19L19 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+  arrow: '<svg viewBox="0 0 24 24"><path d="M5 19L19 5M11 5h8v8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  rect: '<svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
+  ellipse: '<svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="8" ry="6" fill="none" stroke="currentColor" stroke-width="2"/></svg>'
+};
 const SKETCH_COLORS = ['#2b2823', '#d0453b', '#e0673a', '#e8a33d', '#5bb276', '#3a7be0', '#6a5fd6', '#c4579f', '#ffffff'];
 const SKETCH_SIZES = [[2, 'Fine'], [4, 'Medium'], [9, 'Thick'], [18, 'Marker']];
 
@@ -162,8 +172,57 @@ function strokeD(p) {
   d += ` L${p[p.length - 2]},${p[p.length - 1]}`;
   return d;
 }
+// A pressure-sensitive line is drawn as a filled outline whose width follows the pen pressure.
+// st.pr holds one pressure (0–1) per point; 0.5 draws the chosen size.
+const pressureWidth = (size, pr) => size * Math.max(0.15, Math.min(1.9, 0.25 + 1.5 * pr));
+function pressureOutline(p, pr, size) {
+  const n = p.length / 2;
+  if (n < 2) { const r = pressureWidth(size, pr[0] || 0.5) / 2; return `M${p[0] - r},${p[1]} a${r},${r} 0 1,0 ${2 * r},0 a${r},${r} 0 1,0 ${-2 * r},0`; }
+  const left = [], right = [];
+  for (let i = 0; i < n; i++) {
+    const a = Math.max(0, i - 1), b = Math.min(n - 1, i + 1);
+    let dx = p[b * 2] - p[a * 2], dy = p[b * 2 + 1] - p[a * 2 + 1];
+    const len = Math.hypot(dx, dy) || 1; dx /= len; dy /= len;
+    const r = pressureWidth(size, pr[i] == null ? 0.5 : pr[i]) / 2;
+    left.push([p[i * 2] - dy * r, p[i * 2 + 1] + dx * r]);
+    right.push([p[i * 2] + dy * r, p[i * 2 + 1] - dx * r]);
+  }
+  const smooth = (pts) => { let d = ''; for (let i = 1; i < pts.length - 1; i++) { const mx = (pts[i][0] + pts[i + 1][0]) / 2, my = (pts[i][1] + pts[i + 1][1]) / 2; d += ` Q${pts[i][0].toFixed(1)},${pts[i][1].toFixed(1)} ${mx.toFixed(1)},${my.toFixed(1)}`; } return d; };
+  const rEnd = pressureWidth(size, pr[n - 1] == null ? 0.5 : pr[n - 1]) / 2, rStart = pressureWidth(size, pr[0] == null ? 0.5 : pr[0]) / 2;
+  const L = left, R = right.slice().reverse();
+  return `M${L[0][0].toFixed(1)},${L[0][1].toFixed(1)}${smooth(L)} L${L[n - 1][0].toFixed(1)},${L[n - 1][1].toFixed(1)}` +
+    ` A${rEnd.toFixed(1)},${rEnd.toFixed(1)} 0 0,1 ${R[0][0].toFixed(1)},${R[0][1].toFixed(1)}${smooth(R)} L${R[n - 1][0].toFixed(1)},${R[n - 1][1].toFixed(1)}` +
+    ` A${rStart.toFixed(1)},${rStart.toFixed(1)} 0 0,1 ${L[0][0].toFixed(1)},${L[0][1].toFixed(1)}Z`;
+}
+// Points along a shape's outline, used by the eraser.
+function shapePoints(st) {
+  const { x1, y1, x2, y2 } = st;
+  if (st.t === 'rect') return [x1, y1, x2, y1, x2, y2, x1, y2, x1, y1];
+  if (st.t === 'ellipse') {
+    const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2, rx = Math.abs(x2 - x1) / 2, ry = Math.abs(y2 - y1) / 2, out = [];
+    for (let i = 0; i <= 32; i++) { const a = i / 32 * Math.PI * 2; out.push(cx + rx * Math.cos(a), cy + ry * Math.sin(a)); }
+    return out;
+  }
+  return [x1, y1, x2, y2];
+}
 function strokeSvg(st) {
-  return `<path d="${strokeD(st.p)}" stroke="${safeColor(st.c)}" stroke-width="${Math.max(0.5, Math.min(60, +st.s || 4))}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+  const col = safeColor(st.c), w = Math.max(0.5, Math.min(60, +st.s || 4));
+  const line = `stroke="${col}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"`;
+  if (st.t) {
+    const x1 = +st.x1 || 0, y1 = +st.y1 || 0, x2 = +st.x2 || 0, y2 = +st.y2 || 0;
+    const fill = st.f ? `fill="${col}" fill-opacity="0.18"` : 'fill="none"';
+    if (st.t === 'rect') return `<rect x="${Math.min(x1, x2)}" y="${Math.min(y1, y2)}" width="${Math.abs(x2 - x1)}" height="${Math.abs(y2 - y1)}" rx="${Math.min(6, w)}" ${line} ${fill}/>`;
+    if (st.t === 'ellipse') return `<ellipse cx="${(x1 + x2) / 2}" cy="${(y1 + y2) / 2}" rx="${Math.abs(x2 - x1) / 2}" ry="${Math.abs(y2 - y1) / 2}" ${line} ${fill}/>`;
+    let svg = `<path d="M${x1},${y1} L${x2},${y2}" ${line} fill="none"/>`;
+    if (st.t === 'arrow') {
+      const ang = Math.atan2(y2 - y1, x2 - x1), head = Math.max(10, w * 3.2);
+      const hx = (a) => (x2 - head * Math.cos(ang + a)).toFixed(1), hy = (a) => (y2 - head * Math.sin(ang + a)).toFixed(1);
+      svg += `<path d="M${hx(0.45)},${hy(0.45)} L${x2},${y2} L${hx(-0.45)},${hy(-0.45)}" ${line} fill="none"/>`;
+    }
+    return svg;
+  }
+  if (Array.isArray(st.pr) && st.pr.length) return `<path d="${pressureOutline(st.p, st.pr, w)}" fill="${col}" stroke="none"/>`;
+  return `<path d="${strokeD(st.p)}" ${line} fill="none"/>`;
 }
 
 function buildSketchHtml(c) {
@@ -174,6 +233,8 @@ function buildSketchHtml(c) {
 function buildSketchBar() {
   const bar = $('#sketch-bar');
   bar.innerHTML = `
+    <div class="sk-group">${SKETCH_MODES.map(([m, name]) => `<button class="sk-mode" data-mode="${m}" title="${name}${m === 'pen' ? ' (pressure-sensitive with a pen)' : m === 'line' || m === 'arrow' ? ' — hold Shift for straight angles' : ' — hold Shift for a square/circle'}">${SKETCH_MODE_ICONS[m]}</button>`).join('')}
+      <button class="sk-btn sk-fill" data-sk="fill" title="Fill rectangles and ellipses with a light tint of the colour">Fill</button></div>
     <div class="sk-group">${SKETCH_COLORS.map((col) => `<button class="sk-color" data-color="${col}" style="--sw:${col}" title="${col}"></button>`).join('')}</div>
     <div class="sk-group">${SKETCH_SIZES.map(([s, name]) => `<button class="sk-size" data-size="${s}" title="${name}"><i style="width:${Math.min(16, s + 2)}px;height:${Math.min(16, s + 2)}px"></i></button>`).join('')}</div>
     <div class="sk-group">
@@ -187,6 +248,9 @@ function buildSketchBar() {
     const col = e.target.closest('[data-color]');
     const size = e.target.closest('[data-size]');
     const b = e.target.closest('[data-sk]');
+    const mode = e.target.closest('[data-mode]');
+    if (mode) { sketchTool.mode = mode.dataset.mode; sketchTool.eraser = false; }
+    if (b && b.dataset.sk === 'fill') sketchTool.fill = !sketchTool.fill;
     if (col) { sketchTool.color = col.dataset.color; sketchTool.eraser = false; }
     if (size) { sketchTool.size = +size.dataset.size; sketchTool.eraser = false; }
     if (b) {
@@ -203,6 +267,8 @@ function updateSketchBar() {
   $$('#sketch-bar .sk-color').forEach((x) => x.classList.toggle('on', !sketchTool.eraser && x.dataset.color === sketchTool.color));
   $$('#sketch-bar .sk-size').forEach((x) => x.classList.toggle('on', !sketchTool.eraser && +x.dataset.size === sketchTool.size));
   const er = $('#sketch-bar [data-sk="eraser"]'); if (er) er.classList.toggle('on', sketchTool.eraser);
+  $$('#sketch-bar .sk-mode').forEach((x) => x.classList.toggle('on', !sketchTool.eraser && x.dataset.mode === sketchTool.mode));
+  const fl = $('#sketch-bar [data-sk="fill"]'); if (fl) fl.classList.toggle('on', sketchTool.fill);
 }
 
 function startSketch(id) {
@@ -257,7 +323,7 @@ function startStroke(e, id) {
       const [x, y] = pt(ev);
       const before = c.strokes.length;
       c.strokes = c.strokes.filter((s) => {
-        const p = s.p, lim = rad + s.s / 2;
+        const p = s.t ? shapePoints(s) : s.p, lim = rad + s.s / 2;
         if (p.length < 4) return Math.hypot(p[0] - x, p[1] - y) >= lim;
         for (let i = 0; i < p.length - 2; i += 2) if (segDist(x, y, p[i], p[i + 1], p[i + 2], p[i + 3]) < lim) return false;
         return true;
@@ -266,8 +332,30 @@ function startStroke(e, id) {
     };
     erase(e);
     move = erase;
+  } else if (sketchTool.mode !== 'pen') {
+    // shapes: drag from one corner (or end) to the other
+    const [x1, y1] = pt(e);
+    st = { t: sketchTool.mode, c: sketchTool.color, s: sketchTool.size, x1, y1, x2: x1, y2: y1 };
+    if (sketchTool.fill && (st.t === 'rect' || st.t === 'ellipse')) st.f = 1;
+    path = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    svg.appendChild(path);
+    move = (ev) => {
+      let [x2, y2] = pt(ev);
+      if (ev.shiftKey) {
+        const dx = x2 - x1, dy = y2 - y1;
+        if (st.t === 'rect' || st.t === 'ellipse') { const m = Math.max(Math.abs(dx), Math.abs(dy)); x2 = x1 + Math.sign(dx || 1) * m; y2 = y1 + Math.sign(dy || 1) * m; }
+        else { const a = Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) * (Math.PI / 4), len = Math.hypot(dx, dy); x2 = x1 + Math.cos(a) * len; y2 = y1 + Math.sin(a) * len; }
+      }
+      st.x2 = Math.round(x2 * 10) / 10; st.y2 = Math.round(y2 * 10) / 10;
+      if (!changed && Math.hypot(st.x2 - x1, st.y2 - y1) > 2) { c.strokes.push(st); changed = true; }
+      path.innerHTML = changed ? strokeSvg(st) : '';
+    };
   } else {
+    // a pen or stylus that reports pressure draws a line that thickens as you press harder
+    const usesPressure = (ev) => ev.pointerType === 'pen' || (ev.pointerType === 'touch' && ev.pressure > 0 && ev.pressure !== 0.5 && ev.pressure !== 1);
+    const pressure = (ev) => Math.round(Math.max(0.05, Math.min(1, ev.pressure || 0.5)) * 100) / 100;
     st = { c: sketchTool.color, s: sketchTool.size, p: pt(e) };
+    if (usesPressure(e)) st.pr = [pressure(e)];
     c.strokes.push(st);
     path = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     svg.appendChild(path);
@@ -278,7 +366,11 @@ function startStroke(e, id) {
       for (const ce of events.length ? events : [ev]) {
         const [x, y] = pt(ce);
         const n = st.p.length;
-        if (Math.hypot(x - st.p[n - 2], y - st.p[n - 1]) >= 1.5) st.p.push(x, y);
+        if (Math.hypot(x - st.p[n - 2], y - st.p[n - 1]) >= 1.5) {
+          st.p.push(x, y);
+          if (st.pr) st.pr.push(pressure(ce));
+          else if (usesPressure(ce)) st.pr = st.p.map(() => pressure(ce)).slice(0, st.p.length / 2);
+        }
       }
       path.innerHTML = strokeSvg(st);
     };

@@ -35,4 +35,6 @@ desktop.ini
 .vscode/
 .idea/
 *.swp
-build/android-www/
+build/mobile-www/
+server/node_modules/
+server/data/

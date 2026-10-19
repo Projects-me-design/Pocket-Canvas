@@ -20,16 +20,17 @@ async function renderSettings() {
   body.classList.add('settings');
   const s = settingsCache = await api.getSettings();
   syncStatus = await api.syncStatus();
-  const android = api.platform === 'android';
+  const mobile = !!api.mobile; // the Android, iPhone and iPad apps
   // The Android app has no spelling settings (the keyboard does that), folder backups or browser extension.
-  const tabs = android ? [['general', 'General'], ['sync', 'Sync']]
-    : [['general', 'General'], ['spelling', 'Spelling'], ['backups', 'Backups'], ['sync', 'Sync'], ['clipper', 'Browser extension']];
+  const tabs = mobile ? [['general', 'General'], ['sync', 'Sync'], ['server', 'Server']]
+    : [['general', 'General'], ['spelling', 'Spelling'], ['backups', 'Backups'], ['sync', 'Sync'], ['server', 'Server'], ['clipper', 'Browser extension']];
   if (!tabs.some(([id]) => id === settingsTab)) settingsTab = 'general';
   let pane;
   if (settingsTab === 'spelling') pane = spellingPane(await api.spellGet());
   else if (settingsTab === 'backups') pane = backupsPane(await api.backupStatus());
   else if (settingsTab === 'sync') pane = syncPane(s, syncStatus);
   else if (settingsTab === 'clipper') pane = clipperPane(s);
+  else if (settingsTab === 'server') pane = serverPane(serverStatus());
   else pane = generalPane(s);
   body.innerHTML = `
     <nav class="set-tabs">${tabs.map(([id, name]) => `<button data-tab="${id}" class="${settingsTab === id ? 'on' : ''}">${name}</button>`).join('')}</nav>
@@ -37,13 +38,14 @@ async function renderSettings() {
   bindSettings(body, s);
   bindSpelling(body);
   bindBackups(body);
+  bindServer(body);
 }
 
 function generalPane(s) {
   return `
     <label class="field"><span>Your name <small>shown on comments you write</small></span>
       <input data-set="userName" value="${esc(s.userName)}" maxlength="60"></label>
-    <label class="field"><span>${api.platform === 'android' ? 'This device’s name' : 'This computer’s name'} <small>shown to your other devices when syncing</small></span>
+    <label class="field"><span>${api.mobile ? 'This device’s name' : 'This computer’s name'} <small>shown to your other devices when syncing</small></span>
       <input data-set="deviceName" value="${esc(s.deviceName)}" maxlength="60"></label>
     <label class="check"><input type="checkbox" data-set="linkPreviews" ${s.linkPreviews ? 'checked' : ''}>
       <span><b>Link previews</b><br><small>When you add a link, Pocket-Canvas visits the page to fetch its title, description and picture. Turn this off if you’d rather it didn’t contact websites.</small></span></label>
@@ -51,6 +53,11 @@ function generalPane(s) {
 }
 
 function syncPane(s, st) {
+  if (!st.enabled && api.platform === 'ios') {
+    return `
+      <p>On iPhone and iPad, keep your boards in step with your other devices through a <b>Pocket-Canvas Server</b>: see the <b>Server</b> tab. (Sync folders work on computers and Android.)</p>
+      <button class="primary-btn" data-tab="server">Set up the server…</button>`;
+  }
   if (!st.enabled && api.platform === 'android') {
     return `
       <p>Keep your boards the same on this device and your computers by using a folder that a sync app keeps up to date.
@@ -58,7 +65,7 @@ function syncPane(s, st) {
       <ol class="steps">
         <li>In your sync app, share a folder between this device and your computer, for example <i>Pocket-Canvas Sync</i>.</li>
         <li>On your computer, choose that folder in Pocket-Canvas: Settings → Sync.</li>
-        <li>Here, tap <b>Choose sync folder…</b> and type where the folder is on this device. Android asks you to allow access to files the first time.</li>
+        <li>Here, tap <b>Choose sync folder…</b>, pick that folder in Android's folder picker and tap <b>Use this folder</b> (then <b>Allow</b>). Pocket-Canvas can use that folder only.</li>
       </ol>
       <p class="muted small">Boards from each device are combined, never overwritten. Changes to the same card on two devices: the most recent change wins. Pictures and files sync too.</p>
       <button class="primary-btn" data-sync="choose">Choose sync folder…</button>`;
@@ -81,11 +88,11 @@ function syncPane(s, st) {
   return `
     <div class="sync-banner ${st.ok ? 'ok' : 'bad'}">${st.ok ? '✓ Sync is on' : '⚠ ' + esc(st.error || 'Sync has a problem')}</div>
     <div class="kv"><span>Folder</span><span class="path">${esc(st.folder)}</span></div>
-    <div class="kv"><span>${api.platform === 'android' ? 'This device' : 'This computer'}</span><span>${esc(s.deviceName)}${st.lastWrite ? ` <span class="muted">· saved ${esc(timeAgo(st.lastWrite))}</span>` : ''}</span></div>
+    <div class="kv"><span>${api.mobile ? 'This device' : 'This computer'}</span><span>${esc(s.deviceName)}${st.lastWrite ? ` <span class="muted">· saved ${esc(timeAgo(st.lastWrite))}</span>` : ''}</span></div>
     <div class="kv"><span>Other devices</span><ul class="devices">${devices}</ul></div>
     <div class="btn-row">
       <button class="ghost-btn" data-sync="now">Sync now</button>
-      ${api.platform === 'android' ? '' : '<button class="ghost-btn" data-sync="open">Open folder</button>'}
+      ${api.mobile ? '' : '<button class="ghost-btn" data-sync="open">Open folder</button>'}
       <button class="ghost-btn" data-sync="choose">Change folder…</button>
       <button class="ghost-btn danger" data-sync="off">Stop syncing</button>
     </div>
@@ -278,6 +285,69 @@ function bindBackups(body) {
       render(); flushSave();
       if (settingsModal) settingsModal.close();
       toast(`Restored the backup from ${when}`);
+    };
+  });
+}
+
+// ---------- Pocket-Canvas Server ----------
+function serverPane(st) {
+  if (!st.on) {
+    return `
+      <p>Run your own <b>Pocket-Canvas Server</b> (for example on a home server or a small cloud machine) to keep your boards in step on all your devices without a sync folder, and to <b>share boards with other people</b> and edit them together. How to set one up is in the Developer Guide (server/README.md).</p>
+      <form class="form server-form">
+        <label class="field"><span>Server address</span><input name="url" placeholder="https://boards.example.com" value="${esc(st.url)}" autocomplete="url"></label>
+        <label class="field"><span>Your name on the server</span><input name="name" autocomplete="username" spellcheck="false"></label>
+        <label class="field"><span>Password <small>at least 8 characters</small></span><input name="password" type="password" autocomplete="current-password"></label>
+        <label class="field join"><span>Join code <small>only to create a new account; ask whoever runs the server</small></span><input name="joinCode" autocomplete="off" spellcheck="false"></label>
+        <div class="form-error" hidden></div>
+        <div class="btn-row">
+          <button type="button" class="primary-btn" data-srv="signin">Sign in</button>
+          <button type="button" class="ghost-btn" data-srv="register">Create account</button>
+        </div>
+      </form>`;
+  }
+  const label = { online: '✓ Connected', connecting: 'Connecting…', offline: '⚠ Offline', error: '⚠ Please sign in again' }[st.state] || st.state;
+  const spaces = st.spaces.length
+    ? st.spaces.map((sp) => `<li><b>${esc(sp.title)}</b> <span class="muted">· ${sp.members.map((m) => esc(m.display || m.name)).join(', ')}</span></li>`).join('')
+    : '<li class="muted">None yet. Right-click a board › <b>Share with people…</b></li>';
+  return `
+    <div class="sync-banner ${st.state === 'online' ? 'ok' : 'bad'}">${label}${st.error && st.state !== 'online' ? ' — ' + esc(st.error) : ''}</div>
+    <div class="kv"><span>Server</span><span class="path">${esc(st.url)}</span></div>
+    <div class="kv"><span>Signed in as</span><span>${esc(st.user ? st.user.display || st.user.name : '')}</span></div>
+    <label class="check"><input type="checkbox" data-srv="personal" ${st.personal ? 'checked' : ''}>
+      <span><b>Keep all my boards in step through this server</b><br><small>Your other devices signed in as you get every change. You can use this instead of, or as well as, a sync folder.</small></span></label>
+    <div class="kv"><span>Shared boards</span><ul class="devices">${spaces}</ul></div>
+    <div class="btn-row">
+      <button class="ghost-btn" data-srv="reconnect">Reconnect</button>
+      <button class="ghost-btn danger" data-srv="signout">Sign out</button>
+    </div>`;
+}
+function bindServer(body) {
+  const form = body.querySelector('.server-form');
+  const err = form && form.querySelector('.form-error');
+  body.querySelectorAll('[data-srv]').forEach((el) => {
+    const act = el.dataset.srv;
+    if (act === 'personal') {
+      el.onchange = async () => { settingsCache = await api.setSettings({ server: { ...serverCfg(), personal: el.checked } }); SRV.sent.clear(); flushSave(); toast('Saved'); };
+      return;
+    }
+    el.onclick = async () => {
+      if (act === 'signin' || act === 'register') {
+        const v = (n) => form.elements[n].value.trim();
+        err.hidden = true;
+        if (act === 'register' && !v('joinCode')) { err.textContent = 'To create an account, type the server’s join code.'; err.hidden = false; return; }
+        el.disabled = true;
+        try {
+          const u = await serverSignIn(v('url'), v('name'), form.elements.password.value, act === 'register' ? v('joinCode') : '');
+          toast(`Signed in as ${u.display || u.name}`);
+          renderSettings();
+        } catch (e) { err.textContent = e.message; err.hidden = false; } finally { el.disabled = false; }
+      }
+      if (act === 'reconnect') { SRV.retry = 0; serverConnect(); }
+      if (act === 'signout') {
+        if (!(await api.confirm('Sign out of the server?', 'Your boards stay on this device. Shared boards stop updating until you sign in again.'))) return;
+        await serverSignOut(); renderSettings();
+      }
     };
   });
 }

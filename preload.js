@@ -15,6 +15,9 @@ contextBridge.exposeInMainWorld('api', {
   saveBytes: (name, bytes) => ipcRenderer.invoke('assets:saveBytes', { name, bytes }),
   pickFiles: (kind) => ipcRenderer.invoke('assets:pick', kind),
   openAsset: (id) => ipcRenderer.invoke('assets:open', id),
+  readAsset: (id) => ipcRenderer.invoke('assets:read', id),
+  writeAsset: (id, bytes) => ipcRenderer.invoke('assets:write', { id, bytes }),
+  hasAssets: (ids) => ipcRenderer.invoke('assets:missing', ids),
   saveAssetAs: (id, name) => ipcRenderer.invoke('assets:saveAs', { id, name }),
   // links
   openLink: (url) => ipcRenderer.invoke('link:open', url),

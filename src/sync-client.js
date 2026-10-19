@@ -22,7 +22,8 @@ async function applyRemote() {
     let changed = false;
     let from = '';
     for (const r of pendingRemote.splice(0)) {
-      const res = PCSync.merge(merged, r.state);
+      // a shared board's copy is first fitted into a whole-store copy (see server-sync.js)
+      const res = PCSync.merge(merged, r.build ? r.build(merged) : r.state);
       merged = res.store;
       if (res.changed) { changed = true; from = r.deviceName || 'another computer'; }
     }

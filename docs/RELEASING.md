@@ -35,12 +35,14 @@ Do Part 1 first. Signing is added later and does not change how you release.
 
 The workflow lives in `.github/workflows/build.yml` and runs in two stages:
 
-1. **test**, on Ubuntu. It runs the sync merge tests, the smoke test, the feature tests, the extension test in Chromium and the Android screens test. Then it packages the browser extension zip.
-2. **build** and **android**, at the same time. This stage runs only if every test passed.
+1. **test**, on Ubuntu. It runs the sync merge tests, the server tests, the smoke test, the feature tests (including a real Pocket-Canvas Server), the extension test in Chromium and the phone/tablet screens test. Then it packages the browser extension zip.
+2. **build**, **android**, **ios** and **safari**, at the same time. This stage runs only if every test passed.
    - **build** runs on Windows, Ubuntu and macOS and makes the `.exe`, `.AppImage`, `.deb` and `.dmg`.
    - **android** makes the Android `.apk` (see [ANDROID.md](ANDROID.md)).
+   - **ios** makes the iPhone and iPad app on a Mac (see [IOS.md](IOS.md)).
+   - **safari** makes the Safari web clipper app on a Mac (see [SAFARI.md](SAFARI.md)).
 
-The workflow starts in one of two ways. You can press **Run workflow** to make a test build, or you can push a tag such as `v1.4.0` to make a public release.
+The workflow starts in one of two ways. You can press **Run workflow** to make a test build, or you can push a tag such as `v1.5.0` to make a public release.
 
 ## 1.1 One-time set-up: put the project on GitHub
 
@@ -54,12 +56,12 @@ You only need to do this once.
    5. Leave **Add a README**, **.gitignore** and **licence** unticked, because the project already has them.
    6. Click **Create repository**.
 
-2. **Push the code.** Unzip `Pocket-Canvas-1.4.0-source.zip`, open a terminal in the `pocket-canvas` folder and run:
+2. **Push the code.** Unzip `Pocket-Canvas-1.5.0-source.zip`, open a terminal in the `pocket-canvas` folder and run:
 
    ```bash
    git init
    git add .
-   git commit -m "Pocket-Canvas 1.4.0"
+   git commit -m "Pocket-Canvas 1.5.0"
    git branch -M main
    git remote add origin https://github.com/Projects-me-design/Pocket-Canvas.git
    git push -u origin main
@@ -86,16 +88,18 @@ Use a test build whenever you want installers to try out without publishing anyt
 4. Refresh the page after a few seconds and click the new run.
 5. Watch the jobs:
    - **test** takes about 5 minutes.
-   - The three **build** jobs and the **android** job start only once **test** is green, and take 5 to 15 minutes each. macOS is usually the slowest.
+   - The three **build** jobs and the **android**, **ios** and **safari** jobs start only once **test** is green, and take 5 to 15 minutes each. The Mac jobs are usually the slowest, and in a private repository Mac minutes count ten times.
 6. When the run finishes, scroll to the bottom of the run page and find **Artifacts**:
 
    | Artifact | Contains |
    |---|---|
-   | `pocket-canvas-windows-latest` | `Pocket-Canvas Setup 1.4.0.exe` |
-   | `pocket-canvas-macos-latest` | `Pocket-Canvas-1.4.0-arm64.dmg` (Apple-silicon Macs) |
-   | `pocket-canvas-ubuntu-24.04` | `Pocket-Canvas-1.4.0.AppImage`, `pocket-canvas_1.4.0_amd64.deb` |
-   | `pocket-canvas-browser-extension` | `pocket-canvas-web-clipper-1.4.0.zip` |
-   | `pocket-canvas-android` | `Pocket-Canvas-1.4.0-android.apk` (see [ANDROID.md](ANDROID.md)) |
+   | `pocket-canvas-windows-latest` | `Pocket-Canvas Setup 1.5.0.exe` |
+   | `pocket-canvas-macos-latest` | `Pocket-Canvas-1.5.0-arm64.dmg` (Apple-silicon Macs) |
+   | `pocket-canvas-ubuntu-24.04` | `Pocket-Canvas-1.5.0.AppImage`, `pocket-canvas_1.5.0_amd64.deb` |
+   | `pocket-canvas-browser-extension` | `pocket-canvas-web-clipper-1.5.0.zip` |
+   | `pocket-canvas-android` | `Pocket-Canvas-1.5.0-android.apk` (see [ANDROID.md](ANDROID.md)) |
+   | `pocket-canvas-ios` | `Pocket-Canvas-1.5.0-ios-unsigned.ipa` and `…-ios-simulator.zip` (see [IOS.md](IOS.md)) |
+   | `pocket-canvas-safari-extension` | `Pocket-Canvas-Web-Clipper-1.5.0-safari.zip` and the converter's report (see [SAFARI.md](SAFARI.md)) |
 
 7. Click an artifact to download it. GitHub always wraps artifacts in a zip, so unzip it to get the installer. Artifacts are deleted after 90 days.
 
@@ -107,7 +111,7 @@ A test build does **not** create a GitHub Release, and nobody else can see it un
 - **macOS:** open the `.dmg` and drag Pocket-Canvas to Applications.
   - Until it is signed and notarised, macOS says the app "can't be opened".
   - On macOS 15 or later, open **System Settings** → **Privacy & Security**, scroll down to the Pocket-Canvas message and click **Open Anyway**.
-- **Linux:** run `chmod +x Pocket-Canvas-1.4.0.AppImage && ./Pocket-Canvas-1.4.0.AppImage`, or install the `.deb` with `sudo apt install ./pocket-canvas_1.4.0_amd64.deb`.
+- **Linux:** run `chmod +x Pocket-Canvas-1.5.0.AppImage && ./Pocket-Canvas-1.5.0.AppImage`, or install the `.deb` with `sudo apt install ./pocket-canvas_1.5.0_amd64.deb`.
 
 Check the things this release changed, then check the basics: open a board, add a card, restart the app and make sure the card is still there.
 
@@ -115,12 +119,12 @@ Check the things this release changed, then check the basics: open a board, add 
 
 1. **Choose the version number.** Use `MAJOR.MINOR.PATCH`:
    - `1.3.1` for fixes only
-   - `1.4.0` for new features
+   - `1.5.0` for new features
    - `2.0.0` if old data won't open without converting
 2. **Bump the version** in `package.json`:
 
    ```json
-   "version": "1.4.0",
+   "version": "1.5.0",
    ```
 
    You don't need to edit `browser-extension/manifest.json`, because the build copies the version across. Both stores reject an upload whose version isn't higher than the last one.
@@ -139,20 +143,20 @@ Check the things this release changed, then check the basics: open a board, add 
 
    ```bash
    git add .
-   git commit -m "Release 1.4.0"
+   git commit -m "Release 1.5.0"
    git push
    ```
 
 6. **Tag the release and push the tag.** The tag must start with `v` and match `package.json`:
 
    ```bash
-   git tag v1.4.0
-   git push origin v1.4.0
+   git tag v1.5.0
+   git push origin v1.5.0
    ```
 
-7. **Watch it build.** Open **Actions** to see the run for `v1.4.0`.
+7. **Watch it build.** Open **Actions** to see the run for `v1.5.0`.
 8. **Check the release.** When the run is green, open the repository's **Releases** page (right-hand side of the main page, or `/releases`).
-   - Release **v1.4.0** should list every installer and the extension zip.
+   - Release **v1.5.0** should list every installer and the extension zip.
    - Each build job adds its own files as it finishes, so the list fills in over a few minutes.
 9. **Write the release notes.** Click the pencil (**Edit**) on the release. Paste the release's lines from `FEATURES.md`, plus a short "Installing" note pointing Windows and Mac users to the warnings in section 1.3 if the build is unsigned. Click **Update release**.
 
@@ -177,16 +181,16 @@ People can now download from `https://github.com/Projects-me-design/Pocket-Canva
 2. Delete the tag on your computer and on GitHub:
 
    ```bash
-   git tag -d v1.4.0
-   git push --delete origin v1.4.0
+   git tag -d v1.5.0
+   git push --delete origin v1.5.0
    ```
 
 3. Commit the fix, push, and tag again:
 
    ```bash
    git push
-   git tag v1.4.0
-   git push origin v1.4.0
+   git tag v1.5.0
+   git push origin v1.5.0
    ```
 
 If people may already have downloaded the broken version, release `1.4.1` instead of re-tagging.
@@ -387,11 +391,11 @@ Azure Artifact Signing used to be called **Trusted Signing**, and some Azure scr
    | `AZURE_PUBLISHER_NAME` | `Project Tech Me Ltd`, exactly as the certificate's Subject Name |
 
 10. **Run a test build** (section 1.2). In the **windows-latest** job's **Build installer** step, look for lines about signing with Azure. Then check the downloaded installer:
-    - Right-click `Pocket-Canvas Setup 1.4.0.exe` → **Properties** → **Digital Signatures**. Your company name should be listed.
+    - Right-click `Pocket-Canvas Setup 1.5.0.exe` → **Properties** → **Digital Signatures**. Your company name should be listed.
     - Or, in PowerShell:
 
       ```powershell
-      Get-AuthenticodeSignature ".\Pocket-Canvas Setup 1.4.0.exe" | Format-List
+      Get-AuthenticodeSignature ".\Pocket-Canvas Setup 1.5.0.exe" | Format-List
       #   Status : Valid
       ```
 

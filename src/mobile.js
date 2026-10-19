@@ -5,7 +5,7 @@
  *   one finger on an empty part of the board  → move around (pan)
  *   two fingers                               → pinch to zoom
  *   press and hold                            → the right-click menu
- * In the Android app also: a ⋮ menu button (in place of the desktop menu bar) and the Back button.
+ * In the phone and tablet apps also: a ⋮ menu button (in place of the desktop menu bar) and, on Android, the Back button.
  */
 'use strict';
 
@@ -91,9 +91,9 @@
   }, true);
 })();
 
-// ---------- Android app extras ----------
-(function androidApp() {
-  if (!window.api || api.platform !== 'android') return;
+// ---------- Phone and tablet app extras (Android, iPhone, iPad) ----------
+(function mobileApp() {
+  if (!window.api || !api.mobile) return; // the Android, iPhone and iPad apps
   const P = window.Capacitor && window.Capacitor.Plugins;
 
   // A ⋮ button with what's in the desktop menu bar.
@@ -111,6 +111,8 @@
       { label: 'Comments', run: () => api.menu('comments') },
       { label: 'Recycle bin', run: () => openBin() },
       '-',
+      { label: 'Export as picture or PDF…', run: () => openExport() },
+      { label: 'Page guides…', run: () => openPageGuideMenu($('#more-btn')) },
       { label: 'Share board as Markdown…', run: () => exportMarkdown() },
       { label: 'Save a backup of all boards…', run: () => exportJson() },
       { label: 'Restore from a backup…', run: () => importJson() },

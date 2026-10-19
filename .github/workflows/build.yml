@@ -23,8 +23,12 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci || npm install
+      - name: Install the server's packages
+        run: cd server && (npm ci || npm install)
       - name: Sync merge tests
         run: node tests/merge.test.js
+      - name: Server tests
+        run: node tests/server.test.js
       - name: Install the libraries Electron needs on Linux
         run: sudo apt-get update && sudo apt-get install -y xvfb libnss3 libgbm1 libasound2t64 libgtk-3-0t64
       - name: Smoke test
@@ -37,7 +41,7 @@ jobs:
           npx playwright install --with-deps chromium
           xvfb-run -a -s "-screen 0 1400x900x24" node tests/extension.test.js
       - name: Android app screens test
-        run: node tests/android-web.test.js
+        run: node tests/mobile-web.test.js
       - name: Package the browser extension
         run: node scripts/build-extension.js
       - uses: actions/upload-artifact@v7
@@ -150,7 +154,7 @@ jobs:
       - run: npm ci || npm install
       - name: Prepare the app's screens
         run: |
-          node scripts/build-android-web.js
+          node scripts/build-mobile-web.js
           npx cap sync android
       - name: Use your own signing key, if you've added one
         env:
@@ -184,3 +188,99 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           files: dist/*.apk
+
+  # iPhone and iPad app (Capacitor). Builds for the iOS Simulator, plus an unsigned .ipa you can
+  # sign and install with your own Apple ID (see docs/IOS.md).
+  ios:
+    needs: test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci || npm install
+      - name: Prepare the app's screens
+        run: |
+          node scripts/build-mobile-web.js
+          npx cap sync ios
+      - name: Set the version from package.json
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          BUILD=$(node -p "const [a,b,c]=require('./package.json').version.split('.').map(Number); a*10000+b*100+c")
+          sed -i '' -e "s/MARKETING_VERSION = [^;]*;/MARKETING_VERSION = $VERSION;/" -e "s/CURRENT_PROJECT_VERSION = [^;]*;/CURRENT_PROJECT_VERSION = $BUILD;/" ios/App/App.xcodeproj/project.pbxproj
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+      - name: Build for the iOS Simulator
+        run: |
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/ios-sim CODE_SIGNING_ALLOWED=NO build
+          mkdir -p dist
+          (cd build/ios-sim/Build/Products/Debug-iphonesimulator && zip -qry "$GITHUB_WORKSPACE/dist/Pocket-Canvas-$VERSION-ios-simulator.zip" App.app)
+      - name: Build an unsigned app for iPhone and iPad
+        run: |
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath build/ios-device CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
+          mkdir -p build/ipa/Payload
+          cp -R build/ios-device/Build/Products/Release-iphoneos/App.app build/ipa/Payload/
+          (cd build/ipa && zip -qry "$GITHUB_WORKSPACE/dist/Pocket-Canvas-$VERSION-ios-unsigned.ipa" Payload)
+      - uses: actions/upload-artifact@v7
+        with:
+          name: pocket-canvas-ios
+          path: |
+            dist/*.ipa
+            dist/*-ios-simulator.zip
+      - name: Attach to GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            dist/*.ipa
+            dist/*-ios-simulator.zip
+
+  # The browser extension for Safari on the Mac: Apple's converter turns the same extension into
+  # a small Mac app that carries it. The converter's report is saved alongside (see docs/SAFARI.md).
+  safari:
+    needs: test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Convert the extension for Safari
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          node scripts/build-extension.js
+          mkdir -p dist
+          xcrun safari-web-extension-converter browser-extension \
+            --project-location build/safari --app-name "Pocket-Canvas Web Clipper" \
+            --bundle-identifier com.projecttechme.pocketcanvas.webclipper \
+            --swift --macos-only --copy-resources --no-open --no-prompt --force 2>&1 | tee dist/safari-converter-report.txt
+      - name: Check the converter found nothing unsupported
+        run: |
+          if grep -qiE "not supported|unsupported" dist/safari-converter-report.txt; then
+            echo "::warning::Safari doesn't support everything in the extension. See safari-converter-report.txt."
+          else
+            echo "Safari supports every key and permission the extension uses."
+          fi
+      - name: Build the Safari extension app
+        run: |
+          PROJ=$(find build/safari -name "*.xcodeproj" -maxdepth 3 | head -1)
+          xcodebuild -project "$PROJ" -scheme "Pocket-Canvas Web Clipper" -configuration Release \
+            -derivedDataPath build/safari-dd CODE_SIGNING_ALLOWED=NO build
+          (cd build/safari-dd/Build/Products/Release && zip -qry "$GITHUB_WORKSPACE/dist/Pocket-Canvas-Web-Clipper-$VERSION-safari.zip" "Pocket-Canvas Web Clipper.app")
+      - uses: actions/upload-artifact@v7
+        with:
+          name: pocket-canvas-safari-extension
+          path: |
+            dist/*-safari.zip
+            dist/safari-converter-report.txt
+      - name: Attach to GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v3
+        with:
+          files: dist/*-safari.zip

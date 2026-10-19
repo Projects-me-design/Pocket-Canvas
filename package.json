@@ -1,7 +1,7 @@
 {
   "name": "pocket-canvas",
   "productName": "Pocket-Canvas",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "A visual board app for organising ideas: notes, images, links, to-dos, columns and nested boards on an infinite canvas.",
   "main": "main.js",
   "author": {
@@ -25,11 +25,16 @@
     "dist:win": "electron-builder --win",
     "dist:linux": "electron-builder --linux",
     "dist:mac": "electron-builder --mac",
-    "test:android": "node tests/android-web.test.js",
-    "android:web": "node scripts/build-android-web.js",
-    "android:sync": "node scripts/build-android-web.js && npx cap sync android",
+    "test:android": "node tests/mobile-web.test.js",
+    "android:sync": "node scripts/build-mobile-web.js && npx cap sync android",
     "android:open": "npx cap open android",
-    "android:apk": "node scripts/build-android-web.js && npx cap sync android && cd android && ./gradlew assembleRelease"
+    "android:apk": "node scripts/build-mobile-web.js && npx cap sync android && cd android && ./gradlew assembleRelease",
+    "test:mobile": "node tests/mobile-web.test.js",
+    "test:server": "node tests/server.test.js",
+    "mobile:web": "node scripts/build-mobile-web.js",
+    "ios:sync": "node scripts/build-mobile-web.js && npx cap sync ios",
+    "ios:open": "npx cap open ios",
+    "server": "node server/pocket-canvas-server.js"
   },
   "devDependencies": {
     "@capacitor/android": "^8.5.3",
@@ -38,6 +43,7 @@
     "@capacitor/cli": "^8.5.3",
     "@capacitor/core": "^8.5.3",
     "@capacitor/filesystem": "^8.1.5",
+    "@capacitor/ios": "^8.5.3",
     "@capacitor/share": "^8.0.3",
     "electron": "^33.2.0",
     "electron-builder": "^25.1.8"

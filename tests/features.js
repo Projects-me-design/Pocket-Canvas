@@ -189,6 +189,29 @@ function request(method, p, { body, token, origin } = {}) {
     check('sketch: Done leaves drawing mode and keeps the drawing', await ex(`sketchEditing===null && document.querySelectorAll('.card[data-id="${sid}"] .sketch-wrap svg path').length===1`));
     await ex(`undo()`);
     check('sketch: undo brings back an erased line', await ex(`B().cards['${sid}'].strokes.length===2`));
+    // shapes and pressure (1.4)
+    await ex(`startSketch('${sid}')`); await sleep(100);
+    await ex(`document.querySelector('#sketch-bar [data-mode="rect"]').click()`);
+    await mouse('mouseDown', sx, sy - 60); await mouse('mouseMove', sx + 40, sy - 30); await mouse('mouseMove', sx + 80, sy - 20); await mouse('mouseUp', sx + 80, sy - 20);
+    check('sketch: drag to draw a rectangle', await ex(`(s => s.t === 'rect' && s.x2 > s.x1 && s.y2 > s.y1)(B().cards['${sid}'].strokes[2])`));
+    await ex(`document.querySelector('#sketch-bar [data-mode="arrow"]').click(); document.querySelector('#sketch-bar [data-sk="fill"]').click()`);
+    await mouse('mouseDown', sx + 100, sy + 70); await mouse('mouseMove', sx + 160, sy + 74); await mouse('mouseMove', sx + 200, sy + 76, { modifiers: ['shift'] }); await mouse('mouseUp', sx + 200, sy + 76, { modifiers: ['shift'] });
+    check('sketch: arrows, kept level while Shift is held', await ex(`(s => s.t === 'arrow' && Math.abs(s.y2 - s.y1) < 0.5)(B().cards['${sid}'].strokes[3])`));
+    await ex(`document.querySelector('#sketch-bar [data-mode="ellipse"]').click()`);
+    await mouse('mouseDown', sx + 120, sy - 70); await mouse('mouseMove', sx + 170, sy - 40); await mouse('mouseUp', sx + 170, sy - 40);
+    check('sketch: ellipses, filled when Fill is on', await ex(`(s => s.t === 'ellipse' && s.f === 1)(B().cards['${sid}'].strokes[4])`));
+    await ex(`document.querySelector('#sketch-bar [data-mode="pen"]').click()`);
+    await ex(`(() => { const w = document.querySelector('.card[data-id="${sid}"] .sketch-wrap'); const r = w.getBoundingClientRect();
+      const fire = (t, i, p) => w.dispatchEvent(new PointerEvent(t, { pointerId: 9, pointerType: 'pen', pressure: p, clientX: r.left + 30 + i * 12, clientY: r.top + r.height - 30, bubbles: true, cancelable: true, button: 0, buttons: t === 'pointerup' ? 0 : 1 }));
+      fire('pointerdown', 0, 0.1); for (let i = 1; i <= 10; i++) fire('pointermove', i, 0.1 + i * 0.08); fire('pointerup', 10, 0.9); })()`); await sleep(100);
+    const pen = await ex(`B().cards['${sid}'].strokes[5]`);
+    check('sketch: a pen draws thin when pressed lightly and thick when pressed hard', pen && Array.isArray(pen.pr) && pen.pr[0] < 0.2 && pen.pr[pen.pr.length - 1] > 0.8 && pen.pr.length === pen.p.length / 2);
+    check('sketch: pressure lines are drawn as a shape that changes width', await ex(`document.querySelectorAll('.card[data-id="${sid}"] .sketch-wrap svg path[fill="#d0453b"]').length >= 1`));
+    await ex(`document.querySelector('#sketch-bar [data-sk="eraser"]').click()`);
+    await mouse('mouseDown', sx, sy - 40); await mouse('mouseMove', sx + 1, sy - 40); await mouse('mouseUp', sx + 1, sy - 40);
+    check('sketch: the eraser removes shapes too', await ex(`!B().cards['${sid}'].strokes.some(s => s.t === 'rect')`));
+    await shot('sketch-shapes.png');
+    await ex(`stopSketch()`);
 
     // ================= Audio / video =================
     const wavPath = path.join(userData, 'assets', 'testtone00000001.wav');
@@ -275,6 +298,73 @@ function request(method, p, { body, token, origin } = {}) {
     const pdfBuf = fs.readFileSync(pdfOut);
     check('export: the whole board is saved as a one-page PDF', pdfBuf.slice(0, 5).toString() === '%PDF-' && pdfBuf.length > 5000 && (pdfBuf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length === 1);
     if (process.env.SHOT_DIR) { fs.copyFileSync(pngOut, path.join(process.env.SHOT_DIR, 'export.png')); fs.copyFileSync(pdfOut, path.join(process.env.SHOT_DIR, 'export.pdf')); }
+    // Printing on pages
+    const pagedOk = await ex(`(() => {
+      const items = [0, 1, 2, 3, 4, 5].map((i) => ({ el: { i }, x: 0, y: i * 400, w: 600, h: 380 }));
+      const box = { x1: 0, y1: 0, x2: 600, y2: 2380 };
+      const plan = planPages(items, box, { w: 600, h: 1000 });   // 1000 tall pages at scale 1
+      const tops = items.map((it) => it.y + plan.moves.get(it.el));
+      const crosses = items.some((it, k) => Math.floor(tops[k] / 1000) !== Math.floor((tops[k] + it.h - 0.01) / 1000));
+      return { pages: plan.pages, crosses, tops };
+    })()`);
+    check('pages: no card is cut by the edge of a page', !pagedOk.crosses);
+    check('pages: a card that would cross a page edge moves to the top of the next page', pagedOk.tops[2] === 1000 && pagedOk.tops[4] === 2000 && pagedOk.pages === 3);
+    check('pages: wide boards are scaled down to fit the page width', await ex(`planPages([{ el: {}, x: 0, y: 0, w: 2000, h: 100 }], { x1: 0, y1: 0, x2: 2000, y2: 100 }, { w: 500, h: 700 }).scale === 0.25`));
+    const pagesOut = path.join(tmp, 'plan-pages.pdf');
+    const pg3 = await exportBoard({ appDir: path.join(__dirname, '..'), boardId: planId, format: 'pages', quality: 'standard', background: 'white', theme: 'light', filePath: pagesOut, paper: 'A4', orientation: 'portrait' });
+    const pagesBuf = fs.readFileSync(pagesOut);
+    const pageCount = (pagesBuf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
+    check('pages: a board prints on A4 portrait pages', pagesBuf.slice(0, 5).toString() === '%PDF-' && pg3.pages >= 1 && pageCount === pg3.pages && pg3.landscape === false);
+    check('pages: the pages are A4 portrait size', /\/MediaBox\s*\[\s*0 0 59[56](\.\d+)? 84[12](\.\d+)?\s*\]/.test(pagesBuf.toString('latin1')));
+    const pg4 = await exportBoard({ appDir: path.join(__dirname, '..'), boardId: planId, format: 'pages', quality: 'standard', background: 'white', theme: 'light', filePath: pagesOut + '2', paper: 'A4', orientation: 'landscape' });
+    check('pages: landscape pages can be chosen', pg4.landscape === true && /\/MediaBox\s*\[\s*0 0 84[12](\.\d+)? 59[56](\.\d+)?\s*\]/.test(fs.readFileSync(pagesOut + '2').toString('latin1')));
+    const pg5 = await exportBoard({ appDir: path.join(__dirname, '..'), boardId: planId, format: 'pages', quality: 'standard', background: 'white', theme: 'light', filePath: pagesOut + '3', paper: 'Letter', orientation: 'auto' });
+    check('pages: “best fit” picks the direction with fewer pages', pg5.pages <= Math.min(pg3.pages, pg4.pages + 0) || pg5.pages <= pg3.pages);
+    if (process.env.SHOT_DIR) { fs.copyFileSync(pagesOut, path.join(process.env.SHOT_DIR, 'export-pages-portrait.pdf')); fs.copyFileSync(pagesOut + '2', path.join(process.env.SHOT_DIR, 'export-pages-landscape.pdf')); }
+
+    // ---------- Page guides on the board ----------
+    check('guides: off to begin with', await ex(`!document.querySelector('#page-guides') && document.querySelector('#pages-chip').hidden && !pageSetup().show`));
+    await ex(`fitContent()`); await sleep(150);
+    await click(await centre('#pages-btn')); await sleep(200);
+    check('guides: the page button opens the page guide menu', await ex(`!ctx.hidden && [...ctx.querySelectorAll('button')].some(b => b.textContent.includes('Show page guides')) && [...ctx.querySelectorAll('button')].some(b => b.textContent.includes('Landscape'))`));
+    await ex(`[...ctx.querySelectorAll('button')].find(b => b.textContent.includes('Show page guides')).click()`); await sleep(300);
+    check('guides: turning them on draws A4 pages from the top-left corner', await ex(`(() => { const p = document.querySelector('#page-guides .pg-page'); return !!p && p.style.left === '0px' && p.style.top === '0px' && Math.abs(parseFloat(p.style.width) - (8.27 * 96 - 76.8)) < 0.5 && Math.abs(parseFloat(p.style.height) - (11.69 * 96 - 76.8)) < 0.5; })()`));
+    check('guides: pages are numbered in printing order', await ex(`document.querySelector('#page-guides .pg-page:not(.blank) .pg-label').textContent === 'Page 1'`));
+    check('guides: the page button shows they are on, and a label shows the page count', await ex(`document.querySelector('#pages-btn').classList.contains('on') && !document.querySelector('#pages-chip').hidden && /A4 portrait · \\d+ pages?/.test(document.querySelector('#pages-chip').textContent)`));
+    check('guides: the setting is kept with the board', await ex(`B().pages && B().pages.show === true && B().pages.paper === 'A4'`));
+    // a card straddling the first page's right edge
+    const crossId = await ex(`(() => { const c = makeCard(B(), 'note', 640, 60, { html: '<p>Over the edge</p>' }); renderBoard(); return c.id; })()`);
+    await sleep(250);
+    check('guides: a card that crosses a page edge is outlined', await ex(`document.querySelector('.card[data-id="${crossId}"]').classList.contains('crosses-page') && /cross/.test(document.querySelector('#pages-chip').textContent)`));
+    await shot('page-guides.png');
+    await ex(`(() => { B().cards['${crossId}'].x = 360; renderBoard(); })()`); await sleep(250);
+    check('guides: moving it inside the page clears the outline', await ex(`!document.querySelector('.card[data-id="${crossId}"]').classList.contains('crosses-page')`));
+    check('guides: pages with nothing on them are marked “not printed”', await ex(`(() => { const plan = planGuidePages({ show: true, paper: 'A4', landscape: false, scale: 1 }, [{ x: 50, y: 50, w: 100, h: 100, card: true }, { x: 900, y: 1200, w: 100, h: 100, card: true }]); return plan.cols === 2 && plan.rows === 2 && plan.printed === 2 && plan.pages.filter(p => !p.number).length === 2 && plan.pages[3].number === 2; })()`));
+    await ex(`setPageSetup({ landscape: true })`); await sleep(200);
+    check('guides: landscape pages are wider than they are tall', await ex(`(() => { const p = document.querySelector('#page-guides .pg-page'); return parseFloat(p.style.width) > parseFloat(p.style.height); })()`));
+    await ex(`setPageSetup({ landscape: false, paper: 'Letter' })`); await sleep(200);
+    check('guides: Letter pages can be chosen', await ex(`Math.abs(parseFloat(document.querySelector('#page-guides .pg-page').style.width) - (8.5 * 96 - 76.8)) < 0.5`));
+    await ex(`setPageSetup({ paper: 'A4', scale: 0.5 })`); await sleep(200);
+    check('guides: a smaller print size fits more on each page', await ex(`Math.abs(parseFloat(document.querySelector('#page-guides .pg-page').style.width) - (8.27 * 96 - 76.8) * 2) < 1`));
+    await ex(`setPageSetup({ scale: 1 })`); await sleep(200);
+    check('guides: the page guide setting syncs with the board', await ex(`(() => { const remote = JSON.parse(JSON.stringify(PCSync.syncState(store))); remote.boards[cur].pages = { show: true, paper: 'Letter', landscape: true, scale: 0.75 }; remote.boards[cur]._mt = Date.now() + 5000; const m = PCSync.merge(JSON.parse(JSON.stringify(store)), remote).store; return m.boards[cur].pages.paper === 'Letter' && m.boards[cur].pages.scale === 0.75; })()`));
+    // exporting follows the guides
+    await ex(`openExport()`); await sleep(250);
+    check('guides: with guides on, “PDF for printing › Follow the page guides” is chosen for you', await ex(`(() => { const f = document.querySelector('.export-form'); return f.elements.format.value === 'pages' && f.elements.layout.value === 'guides' && f.querySelector('.auto-only').hidden; })()`));
+    await shot('export-guides.png');
+    await ex(`document.querySelectorAll('.modal-actions button').forEach(b => { if (b.textContent === 'Cancel') b.click(); })`).catch(() => {});
+    const expected = await ex(`planGuidePages(pageSetup(), boardShapes()).printed`);
+    await ex(`flushSave()`); await sleep(400);
+    const guideOut = path.join(tmp, 'plan-guides.pdf');
+    const pg6 = await exportBoard({ appDir: path.join(__dirname, '..'), boardId: planId, format: 'pages', quality: 'standard', background: 'white', theme: 'light', filePath: guideOut, paper: 'A4', orientation: 'portrait', layout: 'guides' });
+    const guideBuf = fs.readFileSync(guideOut);
+    const guidePages = (guideBuf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
+    check('guides: “Follow the page guides” prints exactly the pages shown on the board', pg6.pages === expected && guidePages === expected && expected >= 2);
+    check('guides: …on A4 portrait paper', /\/MediaBox\s*\[\s*0 0 59[56](\.\d+)? 84[12](\.\d+)?\s*\]/.test(guideBuf.toString('latin1')));
+    if (process.env.SHOT_DIR) fs.copyFileSync(guideOut, path.join(process.env.SHOT_DIR, 'export-guides.pdf'));
+    await ex(`togglePageGuides()`); await sleep(200);
+    check('guides: they can be turned off again', await ex(`!document.querySelector('#page-guides') && document.querySelector('#pages-chip').hidden && !document.querySelector('.card.crosses-page') && !document.querySelector('#pages-btn').classList.contains('on')`));
+    await ex(`delete B().cards['${crossId}']; B().order = B().order.filter(i => i !== '${crossId}'); renderBoard(); flushSave()`);
     await ex(`go(store.root)`); await sleep(200);
 
     // ================= Browser extension connection =================
@@ -512,6 +602,112 @@ function request(method, p, { body, token, origin } = {}) {
     const ctx = await ex(`(() => { const ed = document.querySelector('.card[data-id="${ctxNote}"] .editable'); const fire = () => { const ev = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 }); ed.dispatchEvent(ev); return ev.defaultPrevented; }; const notEditing = fire(); hideMenu(); makeEditable(ed); ed.focus(); const editing = fire(); ed.blur(); return [notEditing, editing]; })()`);
     check('spelling: right-clicking while typing shows the spelling menu instead of the card menu', ctx[0] === true && ctx[1] === false);
 
+    // ================= 1.4: online videos =================
+    const vids = await ex(`[
+      'https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=1m30s', 'https://youtu.be/dQw4w9WgXcQ', 'https://www.youtube.com/shorts/abcdefghijk',
+      'https://vimeo.com/76979871', 'https://vimeo.com/76979871/abc123def0', 'https://www.dailymotion.com/video/x8abc12', 'https://dai.ly/x8abc12',
+      'https://www.loom.com/share/0123456789abcdef0123456789abcdef', 'https://example.com/watch?v=dQw4w9WgXcQ', 'https://www.youtube.com/channel/UC123'
+    ].map(u => { const v = videoEmbed(u); return v && [v.site, v.id, v.start, v.src]; })`);
+    check('video: YouTube links (watch, youtu.be, Shorts) are recognised, with start times', vids[0][0] === 'youtube' && vids[0][2] === 90 && /youtube-nocookie\.com\/embed\/dQw4w9WgXcQ\?.*start=90/.test(vids[0][3]) && vids[1][1] === 'dQw4w9WgXcQ' && vids[2][1] === 'abcdefghijk');
+    check('video: Vimeo (incl. unlisted), Dailymotion and Loom are recognised', vids[3][0] === 'vimeo' && /h=abc123def0/.test(vids[4][3]) && vids[5][0] === 'dailymotion' && vids[6][1] === 'x8abc12' && vids[7][0] === 'loom');
+    check('video: other web pages stay normal links', vids[8] === null && vids[9] === null);
+    const vc = await ex(`(() => { addLinkCard('https://www.youtube.com/watch?v=dQw4w9WgXcQ', toWorld(700, 300)); return Object.values(B().cards).find(c => c.url === 'https://www.youtube.com/watch?v=dQw4w9WgXcQ').id; })()`);
+    await sleep(300);
+    check('video: a video link shows a player with a Play button (nothing loaded yet)', await ex(`(() => { const el = document.querySelector('.card[data-id="${vc}"]'); return el.classList.contains('video') && !!el.querySelector('.vid-play') && !el.querySelector('iframe'); })()`));
+    await until(() => ex(`!previewLoading.has('${vc}')`), 15000); await sleep(200); // the preview (title, picture) has been fetched
+    await ex(`clearSelection()`);
+    await click(await centre(`.card[data-id="${vc}"] .vid-play`)); await sleep(150);
+    check('video: Play opens the video in the card, using YouTube’s privacy-enhanced player', await ex(`(() => { const f = document.querySelector('.card[data-id="${vc}"] iframe'); return !!f && f.src.startsWith('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ') && /autoplay=1/.test(f.src); })()`));
+    await shot('video-playing.png');
+    await click(await centre(`.card[data-id="${vc}"] [data-act="video-stop"]`));
+    check('video: Stop closes the player', await ex(`!document.querySelector('.card[data-id="${vc}"] iframe') && !!document.querySelector('.card[data-id="${vc}"] .vid-play')`));
+    await ex(`(() => { const c = B().cards['${vc}']; c.player = false; rerenderCard(c.id); })()`);
+    check('video: it can be shown as an ordinary link card instead', await ex(`!document.querySelector('.card[data-id="${vc}"]').classList.contains('video')`));
+    await ex(`(() => { delete B().cards['${vc}'].player; rerenderCard('${vc}'); })()`);
+    check('video: the app allows these video players and nothing else to be embedded', await ex(`document.querySelector('meta[http-equiv="Content-Security-Policy"]').content.includes('frame-src https://www.youtube-nocookie.com')`));
+
+    // ================= 1.4: Pocket-Canvas Server, shared boards =================
+    let srvMod = null, WS = null;
+    try { srvMod = require('../server/pocket-canvas-server.js'); WS = require(require.resolve('ws', { paths: [path.join(__dirname, '..', 'server')] })); } catch {}
+    if (!srvMod) console.log('(server tests skipped: run  cd server && npm install)');
+    else {
+      const srvDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pc-srv-'));
+      const srv = srvMod.createServer({ dataDir: srvDir, joinCode: 'garden-gate', quiet: true });
+      const sport = await srv.listen(0, '127.0.0.1');
+      const SURL = `http://127.0.0.1:${sport}`;
+      const postJ = async (p, body, token) => (await fetch(SURL + p, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, body: JSON.stringify(body) })).json();
+      const fakeDevice = (token, deviceId, deviceName) => new Promise((resolve) => {
+        const ws = new WS(`ws://127.0.0.1:${sport}/ws?token=${encodeURIComponent(token)}`);
+        const d = { ws, got: [], send: (m) => ws.send(JSON.stringify(m)), waitFor: async (fn, ms = 8000) => { const t = Date.now(); while (Date.now() - t < ms) { const m = [...d.got].reverse().find(fn); if (m) return m; await sleep(60); } return null; } };
+        ws.on('message', (data) => d.got.push(JSON.parse(data.toString())));
+        ws.on('open', () => { d.send({ t: 'hello', deviceId, deviceName }); resolve(d); });
+      });
+
+      // the app makes an account and connects
+      const signedIn = await ex(`serverSignIn('${SURL}', 'Sam', 'correct horse', 'garden-gate').then(u => u.name).catch(e => 'ERR ' + e.message)`);
+      check('server: you can create an account from Settings › Server', signedIn === 'Sam');
+      check('server: the app connects and shows Live', await until(() => ex(`SRV.state === 'online' && document.querySelector('#server-state').textContent === 'Live'`)));
+      await ex(`openSettings('server')`); await sleep(400); await shot('settings-server.png'); await ex(`settingsModal && settingsModal.close()`);
+
+      // your other device (a pretend phone signed in as Sam)
+      const samPhone = await postJ('/api/login', { name: 'Sam', password: 'correct horse' });
+      const phone = await fakeDevice(samPhone.token, 'samphone0001', 'Sam’s phone');
+      await ex(`addCard('note', { x: 3000, y: 200 }, { html: '<p>Written on the laptop</p>' }); flushSave()`);
+      const fromApp = await phone.waitFor((m) => m.t === 'doc' && m.scope === 'me' && JSON.stringify(m.state).includes('Written on the laptop'));
+      check('server: your changes reach your other devices', !!fromApp);
+      const st = fromApp.state;
+      st.boards[st.root].cards.phonenote1 = { id: 'phonenote1', type: 'note', x: 3300, y: 200, w: 240, color: null, html: '<p>Written on the phone</p>', _mt: Date.now() + 1000 };
+      st.boards[st.root].order.push('phonenote1');
+      phone.send({ t: 'doc', scope: 'me', state: st });
+      check('server: changes from your other devices appear here', await until(() => ex(`!!store.boards[store.root].cards.phonenote1`)));
+
+      // sharing a board with Alex
+      const alexAcc = await postJ('/api/register', { name: 'Alex', password: 'another password', joinCode: 'garden-gate' });
+      const alex = await fakeDevice(alexAcc.token, 'alexpc000001', 'Alex PC');
+      const shareId = await ex(`(() => { const c = makeCard(B(), 'board', 3000, 500, { title: 'Garden plan' }); const sub = store.boards[c.boardId]; makeCard(sub, 'note', 60, 60, { html: '<p>Roses</p>' }); renderBoard(); flushSave(); return c.boardId; })()`);
+      await sleep(400);
+      await ex(`openShare('${shareId}')`);
+      await until(() => ex(`!!document.querySelector('.share-list input[value="Alex"]')`));
+      await shot('share-board.png');
+      await ex(`document.querySelector('.share-list input[value="Alex"]').click(); [...document.querySelectorAll('.modal-actions button')].find(b => b.textContent === 'Share').click()`);
+      const sp = await alex.waitFor((m) => m.t === 'space');
+      check('server: sharing a board tells the other person', sp && sp.space.title === 'Garden plan' && sp.space.owner.name === 'Sam');
+      const spDoc = await alex.waitFor((m) => m.t === 'doc' && m.scope === sp.space.id);
+      check('server: they get the board and what’s on it', spDoc && Object.values(spDoc.state.boards[shareId].cards).some((c) => (c.html || '').includes('Roses')));
+      check('server: only the shared board is sent to them', spDoc && Object.keys(spDoc.state.boards).length === 1 && !JSON.stringify(spDoc.state).includes('Written on the laptop'));
+      check('server: shared boards show a sharing badge', await until(() => ex(`!!document.querySelector('.card.board .shared-badge') && !!document.querySelector('#tree .tree-shared')`)));
+      // Alex adds a card and is looking at it
+      const alexState = JSON.parse(JSON.stringify(spDoc.state));
+      alexState.boards[shareId].cards.alexcard01 = { id: 'alexcard01', type: 'note', x: 340, y: 60, w: 240, color: null, html: '<p>Tulips (from Alex)</p>', _mt: Date.now() + 2000 };
+      alexState.boards[shareId].order.push('alexcard01');
+      alex.send({ t: 'doc', scope: sp.space.id, state: alexState });
+      await ex(`go('${shareId}')`);
+      check('server: changes made by someone else appear on the shared board', await until(() => ex(`!!B().cards.alexcard01 && !!document.querySelector('.card[data-id="alexcard01"]')`)));
+      alex.send({ t: 'presence', space: sp.space.id, board: shareId, card: 'alexcard01', editing: true });
+      check('server: you can see who else is on the board, and the card they’re typing in', await until(() => ex(`!document.querySelector('#peers').hidden && document.querySelector('#peers .peer-dot').textContent === 'A' && document.querySelector('.card[data-id="alexcard01"]').classList.contains('peer')`)));
+      await shot('shared-board-live.png');
+      // Sam edits; Alex gets it
+      await ex(`(() => { const c = Object.values(B().cards).find(c => (c.html || '').includes('Roses')); c.html = '<p>Roses and lavender</p>'; rerenderCard(c.id); scheduleSave(); })()`);
+      check('server: your changes to a shared board reach the other person', !!(await alex.waitFor((m) => m.t === 'doc' && m.scope === sp.space.id && JSON.stringify(m.state).includes('Roses and lavender'))));
+      // Alex adds a picture
+      const picId = 'abcdef0123456789.png';
+      const png = Buffer.from('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d4944415478da63f8cfc0f01f0005000201a3f2b9d40000000049454e44ae426082', 'hex');
+      await fetch(SURL + '/api/assets/' + picId, { method: 'PUT', headers: { Authorization: 'Bearer ' + alexAcc.token }, body: png });
+      alexState.boards[shareId].cards.alexpic01 = { id: 'alexpic01', type: 'image', x: 640, y: 60, w: 200, color: null, asset: picId, caption: '', _mt: Date.now() + 3000 };
+      alexState.boards[shareId].order.push('alexpic01');
+      alex.send({ t: 'doc', scope: sp.space.id, state: alexState });
+      check('server: pictures added by someone else arrive too', await until(() => fs.existsSync(path.join(userData, 'assets', picId)), 10000));
+      check('server: shared boards can’t be given a password', await ex(`lockMenuItems('${shareId}').length === 0`));
+      alex.send({ t: 'leave', space: sp.space.id });
+      check('server: when everyone else leaves, the board stays yours', await until(() => ex(`!isSharedRoot('${shareId}') && !!store.boards['${shareId}']`)));
+      await ex(`go(store.root)`);
+      await ex(`serverSignOut()`);
+      check('server: signing out disconnects', await until(() => ex(`SRV.ws === null && document.querySelector('#server-state').hidden`)));
+      phone.ws.close(); alex.ws.close();
+      await srv.close();
+      fs.rmSync(srvDir, { recursive: true, force: true });
+    }
+
     // ================= 1.4: a fresh board to work on =================
     await ex(`(() => { const c = makeCard(store.boards[store.root], 'board', 2000, 40, { title: 'Testing 1.4' }); go(c.boardId); })()`); await sleep(300);
     check('board: the board starts flush with the window (no gap)', await ex(`B().view.x === 0 && B().view.y === 0`));
@@ -659,6 +855,9 @@ function request(method, p, { body, token, origin } = {}) {
   for (const r of results) { console.log(`${r.ok ? 'PASS' : 'FAIL'}  ${r.name}`); if (!r.ok) failed++; }
   console.log(`\n${results.length - failed} passed, ${failed} failed`);
   site.close();
-  fs.rmSync(tmp, { recursive: true, force: true });
+  if (process.env.PC_VERBOSE) console.log('cleaning up');
+  try { fs.rmSync(tmp, { recursive: true, force: true }); } catch {}
+  if (process.env.PC_VERBOSE) console.log('exiting');
   app.exit(failed ? 1 : 0);
+  setTimeout(() => process.exit(failed ? 1 : 0), 3000); // in case something holds the app open
 })();
