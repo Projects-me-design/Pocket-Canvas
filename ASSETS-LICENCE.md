@@ -17,6 +17,7 @@ A hand-drawn illustration of a corkboard with pinned notes, a photo, a colour pa
 | `build/icon.ico` | Windows app and installer icon (16–256 px) |
 | `src/icon.png` | Window and taskbar icon, sidebar logo and About box (512 × 512) |
 | `browser-extension/icons/icon-16.png` … `icon-128.png` | Browser-extension toolbar and store icons (16, 32, 48, 96, 128 px), resized from the same artwork |
+| `android/app/src/main/res/mipmap-*/ic_launcher*.png`, `drawable*/splash.png` | Android app icons (normal, round and adaptive foreground) and splash screens, made from the same artwork |
 
 **Artwork by project-tech-me.** Copyright © 2026 project-tech-me <project-tech-me@protonmail.com>. All rights reserved.
 
@@ -45,7 +46,7 @@ These assets are released under the same **MIT licence** as the rest of Pocket-C
 
 ### Colour names
 
-`src/colour-names.js` uses the standard web colour names (such as *Dodger Blue* and *Sea Green*) defined in the W3C CSS Color specification, written with British spelling (*Grey*). Colour names and values are facts in a public standard, not a creative work.
+`src/colour-names.js` uses the standard web colour names (such as *Dodger Blue* and *Sea Green*) defined in the W3C CSS Color specification, written with British spelling (*Grey*), plus a short list of everyday colour names (such as *Rust*, *Burgundy* and *Terracotta*) with their commonly used codes. Descriptions such as *Dark Golden Brown* are worked out by the app's own code. Colour names and values are facts, not a creative work.
 
 ## 3. Fonts
 
@@ -73,6 +74,17 @@ The full Electron licence (`LICENSE`) and the licences for Chromium and its comp
 - Website: https://nodejs.org
 - Licence: MIT and the licences of its components (included in `LICENSES.chromium.html`).
 
+### In the Android app only
+| Component | Licence |
+|---|---|
+| Capacitor (`@capacitor/android`, `@capacitor/core`) — Ionic | MIT |
+| Capacitor plugins: App, Browser, Filesystem, Share — Ionic | MIT |
+| Ionic file system library (used by the Filesystem plugin) | MIT |
+| AndroidX libraries (AppCompat, Core, CoordinatorLayout, SplashScreen, WebKit) — Google | Apache-2.0 |
+| Kotlin standard library and coroutines — JetBrains | Apache-2.0 |
+
+The full licence texts come with each package (for example `node_modules/@capacitor/android/LICENSE`). Before publishing the Android app widely (for example on Google Play), add an "Open-source licences" page to the app that shows these texts, as the Apache-2.0 licence asks for.
+
 ## 6. Build-only tools (not shipped)
 
 These are used to build the installers but are **not** included in the app the user installs:
@@ -82,7 +94,9 @@ These are used to build the installers but are **not** included in the app the u
 | electron-builder | MIT |
 | NSIS (Windows installer engine, used by electron-builder) | zlib/libpng |
 | AppImage runtime (used by electron-builder) | MIT |
-| Playwright (only for the automated browser-extension test) | Apache-2.0 |
+| Playwright (only for the automated browser-extension and Android-screens tests) | Apache-2.0 |
+| Capacitor CLI (prepares the Android project) | MIT |
+| Gradle and the Android Gradle Plugin (build the APK) | Apache-2.0 |
 | web-ext (Mozilla's extension checker, optional) | MPL-2.0 |
 
 The browser extension contains **no third-party code**: only the files in `browser-extension/`, all written for this project.

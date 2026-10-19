@@ -1,24 +1,12 @@
 # Pocket-Canvas
 
-A desktop app for organising ideas visually put notes, pictures, links, to-do lists, tables, sketches, audio, video and files on an infinite board, group them in columns, connect them with lines, and nest boards inside boards. Start from templates, sync across your computers, and save from your browser with the companion extension.
+A desktop app for organising ideas visually, in the style of Milanote: put notes, pictures, links, to-do lists, tables, sketches, audio, video and files on an infinite board, group them in columns, connect them with lines, and nest boards inside boards. Start from templates, sync across your computers, and save from your browser with the companion extension.
 
-Runs on Windows, Linux and macOS. Local-first: no account, no Pocket-Canvas cloud. Your boards stay on your computers.
+Runs on Windows, Linux, macOS and Android. Local-first: no account, no Pocket-Canvas cloud. Your boards stay on your computers.
 
 **Author:** project-tech-me · project-tech-me@protonmail.com
 
 © 2026 project-tech-me · MIT licence (see `LICENSE`; the logo and third-party licences are covered in `ASSETS-LICENCE.md`)
-
----
-
-Product Icon — All Rights Reserved
-Icon Artist: MJO-Art · workmjo@gmail.com
-The product Icon files are custom images created by MJO-Art for this project. These icons can not be altered or used without the express permission of the Artist.
-This covers the following files:
-- build/icon.png
-- build/icon.ico
-- src/icon.png
-
-These icon files are not covered by the MIT Licence or the CC0 dedication in this document.
 
 ---
 
@@ -27,6 +15,12 @@ These icon files are not covered by the MIT Licence or the CC0 dedication in thi
 The full list is in [FEATURES.md](FEATURES.md). Highlights:
 
 **Cards:** note (rich text) · to-do list · link with automatic preview (picture, title, description) · picture · audio & video with Play / Stop · file · table · freehand sketch · board (nested, as deep as you like) · column · heading · colour swatch
+
+**New in 1.4**
+- **Android app** that syncs with your computers (see [docs/ANDROID.md](docs/ANDROID.md))
+- **Text formatting**: font, size, bold, italic, underline, strikethrough, colour
+- **Line styles** (no arrows, both ends, dashed, dotted, thick, straight) and **free-floating lines**
+- **− Row / − Column** on tables, **51 board-icon colours**, and no gap at the board's edge
 
 **New in 1.3**
 - **Recycle bin**: deleted cards and boards can be restored for 30 days; delete buttons on cards, in the top bar and in the sidebar
@@ -54,6 +48,7 @@ The full list is in [FEATURES.md](FEATURES.md). Highlights:
 
 - **[User Guide](docs/USER-GUIDE.md)**: installing and using Pocket-Canvas, for everyone
 - **[Developer Guide](docs/DEVELOPER-GUIDE.md)**: how the code works, testing, building and releasing
+- **[Android app](docs/ANDROID.md)**: installing it, syncing with Syncthing, and how it's built
 - **[Releasing and code signing](docs/RELEASING.md)**: step-by-step guides to publishing a release and signing the installers
 
 ## Running it from the source
@@ -72,6 +67,7 @@ npm run test:merge      # sync merge engine (plain Node)
 npm test                # core features, real app
 npm run test:features   # 1.1 features: sync, export, templates, comments, extension API…
 npm run test:extension  # extension in Chromium (needs Playwright)
+npm run test:android    # Android app screens in a phone-sized Chromium (needs Playwright)
 ```
 
 ## Building an installer
@@ -86,6 +82,7 @@ The installers appear in the `dist` folder.
 
 ```bash
 npm run extension    # browser extension zip for the add-on stores
+npm run android:apk  # Android APK (needs Android Studio / SDK; GitHub Actions does it for you)
 ```
 
 **Easiest way to get a Windows .exe without setting anything up:** push this project to GitHub. The included workflow (`.github/workflows/build.yml`) builds Windows, Linux and macOS installers automatically. Go to the repo's **Actions** tab → **Build installers** → **Run workflow**, then download the installers from the finished run. Pushing a tag such as `v1.0.0` also attaches them to a GitHub Release.

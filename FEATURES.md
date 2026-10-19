@@ -4,7 +4,7 @@ Version 1.4.0 · © 2026 project-tech-me
 
 Pocket-Canvas is a desktop and Android app for organising ideas visually. Put notes, pictures, links, to-do lists, tables, sketches, audio, video and files on an endless board, then group, connect and nest them however you think. Start from a template, keep your boards in step across your computers, and save things straight from your web browser.
 
-**New in 1.4:** **Android app** that syncs with your computers · text formatting (font, size, bold, italic, underline, strikethrough, colour) · line styles (no arrows, arrows at both ends, dashed, dotted, thick, straight) and lines that float freely on the board · delete table rows and columns with one click · 51 board-icon colours plus any colour you like · no more gap at the edge of the board.
+**New in 1.4:** more accurate colour names on Colour cards · **Android app** that syncs with your computers · text formatting (font, size, bold, italic, underline, strikethrough, colour) · line styles (no arrows, arrows at both ends, dashed, dotted, thick, straight) and lines that float freely on the board · delete table rows and columns with one click · 51 board-icon colours plus any colour you like · no more gap at the edge of the board.
 
 **New in 1.3:** Recycle bin (restore anything for 30 days) · easier deleting of cards and boards · password-protected, encrypted boards · automatic backups to a folder you choose · spell checking with suggestions.
 
@@ -29,7 +29,7 @@ Pocket-Canvas is a desktop and Android app for organising ideas visually. Put no
 | **Board** | A board inside your board, with its own **icon**, colour and card count. Open it to start a fresh canvas inside. Boards can be nested as deep as you like. Right-click › **Change icon…** to choose from 42 icons and 51 background colours (17 colours, each light, middle and deep), type any colour code or pick one, or use your own picture. |
 | **Column** | A neat vertical stack of cards. Drag cards in, reorder them inside, or drag them back out onto the board. |
 | **Heading** | Large title text for labelling areas of a board. Change its font, size, colour, bold, italic, underline or strikethrough from the formatting bar. |
-| **Colour swatch** | Type any colour code (e.g. `#3A7BE0`, with or without the #) or click the colour to pick one. The **name fills in automatically** with the nearest named colour (e.g. *Dodger Blue*); type your own name and it stays. Good for palettes and mood boards. |
+| **Colour swatch** | Type any colour code (e.g. `#3A7BE0`, with or without the #) or click the colour to pick one. The **name fills in automatically**: the colour's own name when it is a well-known colour (`#8B4513` is *Saddle Brown*, `#FF7F50` is *Coral*), otherwise a plain description of it (`#5B3600` *Dark Golden Brown*, `#7F2E00` *Reddish Brown*). Type your own name and it stays. Good for palettes and mood boards. |
 
 ## Templates
 
