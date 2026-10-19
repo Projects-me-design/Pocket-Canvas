@@ -94,7 +94,7 @@ Use a test build whenever you want installers to try out without publishing anyt
    | Artifact | Contains |
    |---|---|
    | `pocket-canvas-windows-latest` | `Pocket-Canvas Setup 1.5.0.exe` |
-   | `pocket-canvas-macos-latest` | `Pocket-Canvas-1.5.0-arm64.dmg` (Apple-silicon Macs) |
+   | `pocket-canvas-macos-26` | `Pocket-Canvas-1.5.0-arm64.dmg` (Apple-silicon Macs) |
    | `pocket-canvas-ubuntu-24.04` | `Pocket-Canvas-1.5.0.AppImage`, `pocket-canvas_1.5.0_amd64.deb` |
    | `pocket-canvas-browser-extension` | `pocket-canvas-web-clipper-1.5.0.zip` |
    | `pocket-canvas-android` | `Pocket-Canvas-1.5.0-android.apk` (see [ANDROID.md](ANDROID.md)) |
@@ -300,7 +300,7 @@ You need a Mac for steps 2 and 3. A friend's Mac is fine; you only need it once 
    | `APPLE_APP_SPECIFIC_PASSWORD` | The password from step 5 |
    | `APPLE_TEAM_ID` | The Team ID from step 6 |
 
-8. **Run a test build** (section 1.2). In the **macos-latest** job, open the **Build installer** step. You should see lines such as `signing file=dist/mac-arm64/Pocket-Canvas.app` and `notarization successful`. Notarisation adds anywhere from 2 to 15 minutes.
+8. **Run a test build** (section 1.2). In the **macos-26** job, open the **Build installer** step. You should see lines such as `signing file=dist/mac-arm64/Pocket-Canvas.app` and `notarization successful`. Notarisation adds anywhere from 2 to 15 minutes.
 
 9. **Check the result on a Mac.** Install the new `.dmg`. It should open with only the normal "downloaded from the internet" question. Run these in Terminal to confirm:
 

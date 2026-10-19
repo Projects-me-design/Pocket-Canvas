@@ -6,6 +6,11 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      mac:
+        description: 'Also build the Mac, iPhone/iPad and Safari versions (untick if GitHub''s Mac machines are busy or down)'
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -56,10 +61,12 @@ jobs:
 
   build:
     needs: test
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-24.04, macos-latest]
+        # macos-26 is named directly (not macos-latest) so the build doesn't change when GitHub moves the label.
+        os: ${{ fromJSON((github.event_name == 'workflow_dispatch' && !inputs.mac) && '["windows-latest","ubuntu-24.04"]' || '["windows-latest","ubuntu-24.04","macos-26"]') }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
@@ -193,7 +200,9 @@ jobs:
   # sign and install with your own Apple ID (see docs/IOS.md).
   ios:
     needs: test
-    runs-on: macos-latest
+    if: github.event_name != 'workflow_dispatch' || inputs.mac
+    timeout-minutes: 60
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -244,7 +253,9 @@ jobs:
   # a small Mac app that carries it. The converter's report is saved alongside (see docs/SAFARI.md).
   safari:
     needs: test
-    runs-on: macos-latest
+    if: github.event_name != 'workflow_dispatch' || inputs.mac
+    timeout-minutes: 45
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
