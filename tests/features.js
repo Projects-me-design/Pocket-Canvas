@@ -363,7 +363,12 @@ function request(method, p, { body, token, origin } = {}) {
     await key('A', ['control']);
     await type('#3a7be0'); await key('Enter');
     check('colour: typing a colour code changes the colour', await ex(`B().cards['${swId}'].hex === '#3a7be0'`));
-    check('colour: the name fills in automatically', await ex(`B().cards['${swId}'].title === 'Dodger Blue' && document.querySelector('.card[data-id="${swId}"] .swatch-name').textContent.includes('Dodger Blue')`));
+    check('colour: the name fills in automatically', await ex(`B().cards['${swId}'].title === 'Blue' && document.querySelector('.card[data-id="${swId}"] .swatch-name').textContent.includes('Blue')`));
+    check('colour: a named colour gets its exact name (#8B4513 is Saddle Brown)', await ex(`colourName('#8b4513') === 'Saddle Brown' && colourName('8B4513') === 'Saddle Brown'`));
+    check('colour: different browns get different, fitting names', await ex(`colourName('#5b3600') === 'Dark Golden Brown' && colourName('#7f2e00') === 'Reddish Brown'`));
+    check('colour: a colour is only given a famous name when it really is that colour', await ex(`colourName('#3a7be0') !== 'Dodger Blue' && colourName('#1e90ff') === 'Dodger Blue'`));
+    check('colour: greys, navy, pink, tan and olive are described the way people say them', await ex(`colourName('#3c3c3c') === 'Charcoal Grey' && colourName('#123456') === 'Navy' && colourName('#ffb3c6') === 'Light Pink' && colourName('#c6a26b') === 'Tan' && colourName('#4a5d23') === 'Olive Green'`));
+    check('colour: cards named by an older version are renamed correctly when opened', await ex(`(() => { const d = { version: 1, root: 'r', boards: { r: { id: 'r', title: 'H', parentId: null, cards: { s1: { id: 's1', type: 'swatch', x: 40, y: 40, w: 140, hex: '#7f2e00', title: 'Saddle Brown', nameAuto: true }, s2: { id: 's2', type: 'swatch', x: 200, y: 40, w: 140, hex: '#5b3600', title: 'My brown', nameAuto: false } }, order: ['s1', 's2'], links: [] } } }; migrate(d); return d.boards.r.cards.s1.title === 'Reddish Brown' && d.boards.r.cards.s2.title === 'My brown'; })()`));
     await ex(`(() => { const i = document.querySelector('.card[data-id="${swId}"] .swatch-hex-input'); i.focus(); i.value = '2e8b57'; i.dispatchEvent(new Event('change', { bubbles: true })); })()`); await sleep(150);
     check('colour: codes work without the # too', await ex(`B().cards['${swId}'].hex === '#2e8b57' && B().cards['${swId}'].title === 'Sea Green'`));
     await ex(`(() => { const i = document.querySelector('.card[data-id="${swId}"] .swatch-hex-input'); i.focus(); i.value = 'not a colour'; i.dispatchEvent(new Event('change', { bubbles: true })); })()`); await sleep(150);

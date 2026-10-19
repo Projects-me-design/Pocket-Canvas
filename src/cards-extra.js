@@ -443,7 +443,8 @@ async function fetchPreview(id, force = false, boardId = cur) {
 // The name follows the colour until you type your own name (clear the name to switch back).
 function swatchAutoName(c) {
   if (c.nameAuto === false) return false;
-  return !c.title || c.title === colourName(c.hex);
+  if (c.nameAuto === true) return true;
+  return !c.title || c.title === colourName(c.hex); // older cards without the flag
 }
 
 function setSwatchColour(c, value) {

@@ -1957,6 +1957,13 @@ function migrate(data) {
     b.order = b.order.filter((id) => b.cards[id]);
     for (const id of Object.keys(b.cards)) if (!b.order.includes(id)) b.order.push(id);
     b.links = b.links.filter((l) => lineValid(l, b));
+    // Colour cards named automatically get today's (more accurate) colour names.
+    for (const c of Object.values(b.cards)) {
+      if (c.type === 'swatch' && c.nameAuto === true && normaliseHex(c.hex)) {
+        const name = colourName(c.hex);
+        if (c.title !== name) c.title = name;
+      }
+    }
   }
   return data;
 }

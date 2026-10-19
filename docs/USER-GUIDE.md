@@ -13,6 +13,7 @@ This guide is for anyone using the app. You don't need any technical knowledge.
 - **− Row** and **− Column** buttons on tables
 - **51 colours** for board icons, or type any colour you like
 - The board now starts right at the edge of the window, without a gap
+- **More accurate colour names** on Colour cards: a well-known name only when it really is that colour, otherwise a description such as *Dark Golden Brown*
 - Touch screens: drag to move around, pinch to zoom, press and hold for the menu
 
 **Version 1.3**
@@ -238,7 +239,10 @@ Big bold text for labelling areas of a board, such as "Ideas", "Done" or "Week 1
 ### Colour swatch
 - Add one with the **Colour** tool. The colour code is ready for you to type straight away.
 - **Type a colour code** such as `#3A7BE0` (the `#` is optional, and short codes like `#38F` work too), then press **Enter**. Or **click the coloured block** to choose from the colour picker.
-- The **name fills in automatically** with the nearest named colour, for example *Dodger Blue* or *Sea Green*. It updates whenever you change the colour.
+- The **name fills in automatically** and updates whenever you change the colour:
+  - if the colour is a well-known named colour (or so close you couldn't tell them apart), you get that name, for example `#8B4513` is *Saddle Brown* and `#2E8B57` is *Sea Green*
+  - otherwise you get a plain description, for example `#5B3600` is *Dark Golden Brown*, `#7F2E00` is *Reddish Brown* and `#3A7BE0` is *Blue*
+- Colour cards named by an older version get the more accurate names when you next open Pocket-Canvas. Names you typed yourself are never changed.
 - Prefer your own name, such as *Brand orange*? Click the name and type it. Your name then stays, even if you change the colour. Delete the name to switch automatic naming back on.
 - Drag the card by its coloured block to move it.
 - Great for colour palettes and mood boards.
