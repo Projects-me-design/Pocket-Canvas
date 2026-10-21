@@ -289,6 +289,7 @@ function applyView() {
   viewport.style.backgroundSize = `${g}px ${g}px`;
   viewport.style.backgroundPosition = `${v.x}px ${v.y}px`;
   $('#zoom-label').textContent = Math.round(v.z * 100) + '%';
+  if (typeof placeScrollbars === 'function') placeScrollbars();
 }
 function toWorld(cx, cy) {
   const r = viewport.getBoundingClientRect();
@@ -381,6 +382,7 @@ function renderBoard() {
   refreshComments();
   if (typeof updatePeers === 'function') updatePeers();
   if (typeof updatePageGuides === 'function') updatePageGuides();
+  if (typeof updateScrollbars === 'function') updateScrollbars();
 }
 
 function editable(field, value, ph, rich = false) {

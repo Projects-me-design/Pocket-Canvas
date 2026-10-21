@@ -684,7 +684,7 @@ html.mobile .tool { cursor: pointer; }
 .card.crosses-page { box-shadow: 0 0 0 2px var(--pg-warn), var(--card-shadow); }
 .card.crosses-page.selected { box-shadow: 0 0 0 2px var(--accent), 0 0 0 5px var(--pg-warn), var(--card-shadow); }
 #pages-btn.on { color: var(--accent); background: var(--panel-2); }
-#pages-chip { position: absolute; left: 12px; bottom: 12px; z-index: 20; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 12px; padding: 5px 11px; border-radius: 999px; box-shadow: var(--card-shadow); cursor: pointer; }
+#pages-chip { position: absolute; left: 12px; bottom: 20px; z-index: 20; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 12px; padding: 5px 11px; border-radius: 999px; box-shadow: var(--card-shadow); cursor: pointer; }
 #pages-chip .warn { color: var(--pg-warn); font-weight: 600; }
 .menu button .tick { display: inline-block; width: 18px; font-style: normal; color: var(--accent); }
 .export-mode #page-guides, .export-mode #pages-chip { display: none !important; }
@@ -696,3 +696,20 @@ html.export-guided, html.export-guided body { height: auto; overflow: visible; }
 #print-pages .print-page { position: relative; overflow: clip; contain: strict; break-after: page; page-break-after: always; }
 #print-pages .print-page:last-child { break-after: auto; page-break-after: auto; }
 #print-pages .print-page > div { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+
+/* ---------- Scroll bars (bottom and right of the board) ---------- */
+.sb { position: absolute; z-index: 15; border-radius: 6px; background: transparent; transition: background .15s; touch-action: none; }
+.sb-h { left: 8px; right: 20px; bottom: 3px; height: 11px; }
+.sb-v { top: 8px; bottom: 20px; right: 3px; width: 11px; }
+.sb:hover, .sb.dragging { background: var(--sb-track); }
+.sb-thumb { position: absolute; border-radius: 6px; background: var(--sb-thumb); cursor: default; transition: background .15s; }
+.sb-h .sb-thumb { top: 2px; bottom: 2px; }
+.sb-v .sb-thumb { left: 2px; right: 2px; }
+.sb:hover .sb-thumb { background: var(--sb-thumb-hi); }
+.sb.dragging .sb-thumb { background: var(--sb-thumb-on); }
+.sb-h:hover .sb-thumb, .sb-h.dragging .sb-thumb { top: 1px; bottom: 1px; }
+.sb-v:hover .sb-thumb, .sb-v.dragging .sb-thumb { left: 1px; right: 1px; }
+:root { --sb-track: rgba(0, 0, 0, .06); --sb-thumb: rgba(0, 0, 0, .3); --sb-thumb-hi: rgba(0, 0, 0, .42); --sb-thumb-on: rgba(0, 0, 0, .48); }
+[data-theme="dark"] { --sb-track: rgba(255, 255, 255, .07); --sb-thumb: rgba(255, 255, 255, .3); --sb-thumb-hi: rgba(255, 255, 255, .42); --sb-thumb-on: rgba(255, 255, 255, .5); }
+html.mobile .sb-h { height: 8px; } html.mobile .sb-v { width: 8px; }
+.export-mode .sb { display: none !important; }

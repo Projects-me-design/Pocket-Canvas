@@ -9,6 +9,7 @@ This guide is for anyone using the app. You don't need any technical knowledge.
 **Version 1.5**
 - **Share boards with other people** and edit them together, live, through your own **Pocket-Canvas Server**, which also syncs your devices without a sync folder ([section 26](#26-sharing-boards-and-your-own-server))
 - **PDF for printing**: A4 or Letter pages, portrait, landscape or best fit, and cards are never cut in half ([section 20](#20-exporting-pdf-picture-and-markdown))
+- **Scroll bars** along the bottom and right of the board whenever pictures or cards are off screen
 - **Page guides**: dashed A4 or Letter page outlines on the board, so you can lay things out for printing; turn them on and off with the page button or **Ctrl+Shift+G** ([section 20](#page-guides))
 - **Sketches:** pressure-sensitive pens, plus lines, arrows, rectangles and ellipses ([section 4](#sketch))
 - **YouTube, Vimeo, Dailymotion and Loom videos** play inside link cards ([section 4](#link))
@@ -478,6 +479,7 @@ Leave notes to yourself, or questions and answers, on any card without changing 
 | Zoom in or out | Hold **Ctrl** and scroll, or use **−** / **+** in the top bar |
 | Back to 100% | Click the percentage in the top bar, or **Ctrl+0** |
 | See everything on the board | The **⤢** button, or **Ctrl+1**: shows everything from the top-left corner |
+| Scroll with the scroll bars | When something is off screen, a **scroll bar** appears along the bottom (for things off to the right) and down the right-hand side (for things further down). Drag the handle, or click either side of it to jump about a screen. |
 | See where printed pages fall | The **page button**, or **Ctrl+Shift+G** ([page guides](#page-guides)) |
 | Hide the sidebar for more room | The **☰** button, or **Ctrl+\\** |
 

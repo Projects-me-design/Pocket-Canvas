@@ -365,6 +365,33 @@ function request(method, p, { body, token, origin } = {}) {
     await ex(`togglePageGuides()`); await sleep(200);
     check('guides: they can be turned off again', await ex(`!document.querySelector('#page-guides') && document.querySelector('#pages-chip').hidden && !document.querySelector('.card.crosses-page') && !document.querySelector('#pages-btn').classList.contains('on')`));
     await ex(`delete B().cards['${crossId}']; B().order = B().order.filter(i => i !== '${crossId}'); renderBoard(); flushSave()`);
+
+    // ---------- Scroll bars ----------
+    await ex(`fitContent()`); await sleep(300);
+    check('scroll bars: hidden when everything fits on screen', await ex(`document.querySelector('#hscroll').hidden && document.querySelector('#vscroll').hidden`));
+    const farId = await ex(`(() => { const c = makeCard(B(), 'image', 3200, 1800, {}); B().view = { x: 0, y: 0, z: 1 }; renderBoard(); return c.id; })()`);
+    await sleep(300);
+    check('scroll bars: a bottom scroll bar appears when cards go off the right of the screen', await ex(`(() => { const b = document.querySelector('#hscroll'); const t = b.firstElementChild; return !b.hidden && t.offsetWidth < b.clientWidth && t.offsetLeft === 0; })()`));
+    check('scroll bars: …and one on the right for cards below the screen', await ex(`!document.querySelector('#vscroll').hidden`));
+    await shot('scrollbars.png');
+    const th = await ex(`(() => { const r = document.querySelector('#hscroll .sb-thumb').getBoundingClientRect(); return [Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2)]; })()`);
+    const trackEnd = await ex(`Math.round(document.querySelector('#hscroll').getBoundingClientRect().right) - 2`);
+    await mouse('mouseMove', th[0], th[1]); await mouse('mouseDown', th[0], th[1]);
+    for (let k = 1; k <= 8; k++) await mouse('mouseMove', th[0] + Math.round((trackEnd - th[0]) * k / 8), th[1]);
+    await mouse('mouseUp', trackEnd, th[1]); await sleep(200);
+    check('scroll bars: dragging the bottom handle moves the board sideways to the far edge', await ex(`(() => { const r = document.querySelector('.card[data-id="${farId}"]').getBoundingClientRect(); const v = document.querySelector('#viewport').getBoundingClientRect(); return B().view.x < -2000 && B().view.y === 0 && r.right <= v.right && r.left >= v.left; })()`));
+    check('scroll bars: no selection box or panning starts underneath', await ex(`document.querySelector('#marquee').hidden && selected.size === 0`));
+    const x0 = await ex(`B().view.x`);
+    const tl = await ex(`(() => { const b = document.querySelector('#hscroll').getBoundingClientRect(); return [Math.round(b.left + 6), Math.round(b.top + b.height / 2)]; })()`);
+    await click(tl); await sleep(150);
+    check('scroll bars: clicking the track jumps back about a screen', await ex(`B().view.x`) > x0 + 300);
+    const vt = await ex(`(() => { const b = document.querySelector('#vscroll').getBoundingClientRect(); return [Math.round(b.left + b.width / 2), Math.round(b.bottom - 6)]; })()`);
+    await click(vt); await sleep(150);
+    check('scroll bars: clicking the right-hand track scrolls down', await ex(`B().view.y < -300`));
+    await ex(`B().view.z = 0.5; applyView()`); await sleep(100);
+    check('scroll bars: the handle grows when you zoom out', await ex(`(() => { const b = document.querySelector('#hscroll'); return b.hidden || b.firstElementChild.offsetWidth > 60; })()`));
+    await ex(`(() => { delete B().cards['${farId}']; B().order = B().order.filter(i => i !== '${farId}'); renderBoard(); fitContent(); flushSave(); return true; })()`); await sleep(300);
+    check('scroll bars: they go away again when nothing is off screen', await ex(`document.querySelector('#hscroll').hidden && document.querySelector('#vscroll').hidden`));
     await ex(`go(store.root)`); await sleep(200);
 
     // ================= Browser extension connection =================

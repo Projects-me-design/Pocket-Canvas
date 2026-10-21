@@ -74,6 +74,7 @@ function markerId(colour) { return 'lm-' + (colour ? colour.replace(/[^0-9a-z]/g
 function drawLinks() {
   if (!store) return;
   if (typeof updatePageGuides === 'function') updatePageGuides();
+  if (typeof updateScrollbars === 'function') updateScrollbars();
   const b = B();
   const colours = new Set([null]);
   let html = '', handles = '';

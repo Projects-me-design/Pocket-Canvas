@@ -4,7 +4,7 @@ Version 1.5.0 · © 2026 project-tech-me
 
 Pocket-Canvas is a desktop, Android, iPhone and iPad app for organising ideas visually. Put notes, pictures, links, to-do lists, tables, sketches, audio, video and files on an endless board, then group, connect and nest them however you think. Start from a template, keep your boards in step across all your devices, share boards with other people and edit them together, and save things straight from your web browser.
 
-**New in 1.5:** **share boards with other people and edit them together, live**, through your own **Pocket-Canvas Server** (which also syncs your devices without a sync folder) · **PDF for printing** on A4 or Letter pages, portrait, landscape or best fit, with no card cut in half · **page guides** on the board (A4/Letter, on or off) that the PDF follows exactly · **pressure-sensitive pens** and **shapes** (lines, arrows, rectangles, ellipses) in sketches · **YouTube, Vimeo, Dailymotion and Loom videos** playing in link cards · **iPhone and iPad app** · web clipper for **Safari** · Android: Android's own **folder picker** for sync, and **picture/PDF export**.
+**New in 1.5:** **share boards with other people and edit them together, live**, through your own **Pocket-Canvas Server** (which also syncs your devices without a sync folder) · **PDF for printing** on A4 or Letter pages, portrait, landscape or best fit, with no card cut in half · **scroll bars** along the bottom and right of the board when cards are off screen · **page guides** on the board (A4/Letter, on or off) that the PDF follows exactly · **pressure-sensitive pens** and **shapes** (lines, arrows, rectangles, ellipses) in sketches · **YouTube, Vimeo, Dailymotion and Loom videos** playing in link cards · **iPhone and iPad app** · web clipper for **Safari** · Android: Android's own **folder picker** for sync, and **picture/PDF export**.
 
 **New in 1.4:** more accurate colour names on Colour cards · **Android app** that syncs with your computers · text formatting (font, size, bold, italic, underline, strikethrough, colour) · line styles (no arrows, arrows at both ends, dashed, dotted, thick, straight) and lines that float freely on the board · delete table rows and columns with one click · 51 board-icon colours plus any colour you like · no more gap at the edge of the board.
 
@@ -130,6 +130,7 @@ Pocket-Canvas is a desktop, Android, iPhone and iPad app for organising ideas vi
 - Scroll to move, or hold **Space** and drag, or drag with the middle mouse button
 - Zoom with Ctrl + scroll (towards the mouse pointer), Ctrl + = / −, or the zoom buttons. Zoom range is 10%–300%.
 - **Fit to content** (Ctrl+1) shows the whole board at once, starting from the top-left corner
+- **Scroll bars** along the bottom and right-hand side appear when anything is off screen: drag the handle, or click the track to jump a screen. They grow and shrink with the zoom and disappear when everything fits.
 - Each board remembers where you were and how far you'd zoomed
 - Alt + ← goes up to the parent board
 - **Touch screens:** drag one finger on an empty part of the board to move around, pinch with two fingers to zoom, and press and hold for the right-click menu
