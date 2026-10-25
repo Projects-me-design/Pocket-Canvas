@@ -10,14 +10,14 @@ async function cardAction(act, c, el, e) {
   switch (act) {
     case 'add-row': {
       checkpoint();
-      c.rows.push(Array(tableCols(c)).fill(''));
+      tblInsertRow(c, c.rows.length);
       rerenderCard(c.id); scheduleSave();
       startEditOf(c.id, `[data-field="cell:${c.rows.length - 1}:0"]`);
       break;
     }
     case 'add-col': {
       checkpoint();
-      c.rows.forEach((r) => r.push(''));
+      tblInsertCol(c, tableCols(c));
       rerenderCard(c.id); scheduleSave();
       startEditOf(c.id, `[data-field="cell:0:${tableCols(c) - 1}"]`);
       break;
@@ -27,10 +27,10 @@ async function cardAction(act, c, el, e) {
       const t = tableTarget(c);
       if (act === 'del-row') {
         if (c.rows.length <= 1) { toast('A table needs at least one row'); return; }
-        checkpoint(); c.rows.splice(t.r, 1);
+        checkpoint(); tblDeleteRow(c, t.r);
       } else {
         if (tableCols(c) <= 1) { toast('A table needs at least one column'); return; }
-        checkpoint(); c.rows.forEach((row) => row.splice(t.k, 1));
+        checkpoint(); tblDeleteCol(c, t.k);
       }
       lastTableCell = null;
       rerenderCard(c.id); scheduleSave();
@@ -88,8 +88,11 @@ document.addEventListener('mouseout', (e) => { const b = e.target.closest && e.t
 
 function buildTableHtml(c) {
   const cols = tableCols(c);
-  const rows = c.rows.map((r, ri) => `<tr>${Array.from({ length: cols }, (_, ci) =>
-    `<td data-r="${ri}" data-c="${ci}">${editable(`cell:${ri}:${ci}`, r[ci] || '', ri === 0 && c.header ? `Column ${ci + 1}` : '')}</td>`).join('')}</tr>`).join('');
+  const rows = c.rows.map((r, ri) => `<tr>${Array.from({ length: cols }, (_, ci) => {
+    const css = cellCss(cellLook(c, ri, ci));
+    const ed = editable(`cell:${ri}:${ci}`, r[ci] || '', ri === 0 && c.header ? `Column ${ci + 1}` : '');
+    return `<td data-r="${ri}" data-c="${ci}"${css.td ? ` class="styled" style="${css.td}"` : ''}>${tableGrips(ri, ci)}${tablePicHtml(c, ri, ci)}${css.text ? ed.replace('<div class="editable"', `<div class="editable" style="${css.text}"`) : ed}</td>`;
+  }).join('')}</tr>`).join('');
   return `<div class="tbl-wrap"><table class="tbl ${c.header ? 'has-head' : ''}"><tbody>${rows}</tbody></table></div>
     <div class="tbl-tools"><button class="tbl-btn" data-act="add-row">+ Row</button><button class="tbl-btn" data-act="add-col">+ Column</button>
       <span class="tbl-sep"></span>
@@ -103,11 +106,23 @@ function tableKey(e, c, field) {
   const go = (nr, nk) => {
     if (nr >= c.rows.length) {
       checkpoint();
-      c.rows.push(Array(cols).fill(''));
+      tblInsertRow(c, c.rows.length);
       rerenderCard(c.id); scheduleSave();
     }
     startEditOf(c.id, `[data-field="cell:${nr}:${nk}"]`);
   };
+  // Alt + arrow keys move the row or column you're typing in
+  if (e.altKey && !e.ctrlKey && !e.metaKey && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+    e.preventDefault();
+    e.stopPropagation(); // the editor is about to close; don't let Alt+← also go up to the parent board
+    const row = e.key === 'ArrowUp' || e.key === 'ArrowDown';
+    const d = e.key === 'ArrowUp' || e.key === 'ArrowLeft' ? -1 : 1;
+    const to = row ? r + d : k + d;
+    setField(c, field, e.target);
+    e.target.blur();
+    if (!moveTablePart(c, row ? 'row' : 'col', row ? r : k, to, row ? { r: to, k } : { r, k: to })) startEditOf(c.id, `[data-field="cell:${r}:${k}"]`);
+    return true;
+  }
   if (e.key === 'Tab') {
     e.preventDefault();
     let nr = r, nk = k + (e.shiftKey ? -1 : 1);
@@ -127,19 +142,44 @@ function tableKey(e, c, field) {
   return false;
 }
 
-function tableMenuItems(c, r, k) {
+// Right-click menu for a cell (or, from a grip, just for a row or a column).
+function tableMenuItems(c, r, k, only) {
   const change = (fn) => () => { checkpoint(); fn(); rerenderCard(c.id); scheduleSave(); };
   const cols = tableCols(c);
-  const items = [
-    { label: 'Insert row above', run: change(() => c.rows.splice(r, 0, Array(cols).fill(''))) },
-    { label: 'Insert row below', run: change(() => c.rows.splice(r + 1, 0, Array(cols).fill(''))) },
-    { label: 'Insert column left', run: change(() => c.rows.forEach((row) => row.splice(k, 0, ''))) },
-    { label: 'Insert column right', run: change(() => c.rows.forEach((row) => row.splice(k + 1, 0, ''))) }
+  const rowItems = [
+    { label: 'Move row up', hint: 'Alt+↑', run: () => moveTablePart(c, 'row', r, r - 1), off: r === 0 },
+    { label: 'Move row down', hint: 'Alt+↓', run: () => moveTablePart(c, 'row', r, r + 1), off: r >= c.rows.length - 1 },
+    { label: 'Insert row above', run: change(() => tblInsertRow(c, r)) },
+    { label: 'Insert row below', run: change(() => tblInsertRow(c, r + 1)) },
+    { label: 'Colour this row…', run: () => styleTablePart(c, r, k, 'row') },
+    { label: 'Delete row', run: change(() => tblDeleteRow(c, r)), off: c.rows.length <= 1 }
   ];
-  if (c.rows.length > 1) items.push({ label: 'Delete row', run: change(() => c.rows.splice(r, 1)) });
-  if (cols > 1) items.push({ label: 'Delete column', run: change(() => c.rows.forEach((row) => row.splice(k, 1))) });
-  items.push({ label: c.header ? 'Turn off heading row' : 'Use first row as headings', run: change(() => { c.header = !c.header; }) });
-  return items;
+  const colItems = [
+    { label: 'Move column left', hint: 'Alt+←', run: () => moveTablePart(c, 'col', k, k - 1), off: k === 0 },
+    { label: 'Move column right', hint: 'Alt+→', run: () => moveTablePart(c, 'col', k, k + 1), off: k >= cols - 1 },
+    { label: 'Insert column left', run: change(() => tblInsertCol(c, k)) },
+    { label: 'Insert column right', run: change(() => tblInsertCol(c, k + 1)) },
+    { label: 'Colour this column…', run: () => styleTablePart(c, r, k, 'col') },
+    { label: 'Delete column', run: change(() => tblDeleteCol(c, k)), off: cols <= 1 }
+  ];
+  const keep = (list) => list.filter((it) => !it.off).map(({ off, ...it }) => it);
+  if (only === 'row') return keep(rowItems);
+  if (only === 'col') return keep(colItems);
+  const pic = cellPic(c, r, k);
+  return [
+    { label: pic ? 'Replace picture…' : 'Add a picture…', run: () => pickCellPic(c, r, k) },
+    ...(pic ? [
+      { label: 'Open picture', run: () => api.openAsset(pic) },
+      { label: 'Save a copy of the picture…', run: () => api.saveAssetAs(pic, 'picture' + pic.slice(pic.lastIndexOf('.'))) },
+      { label: 'Remove picture', run: change(() => setCellPic(c, r, k, null)) }
+    ] : []),
+    '-',
+    { label: 'Colour this cell…', run: () => styleTablePart(c, r, k, 'cell') },
+    { label: 'Text colour and style…', run: () => styleTablePart(c, r, k, 'cell', 'colour') },
+    '-',
+    ...keep(rowItems), '-', ...keep(colItems), '-',
+    { label: c.header ? 'Turn off heading row' : 'Use first row as headings', run: change(() => { c.header = !c.header; }) }
+  ];
 }
 
 // ======================================================================

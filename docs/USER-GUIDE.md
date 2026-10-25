@@ -9,6 +9,7 @@ This guide is for anyone using the app. You don't need any technical knowledge.
 **Version 1.5**
 - **Share boards with other people** and edit them together, live, through your own **Pocket-Canvas Server**, which also syncs your devices without a sync folder ([section 26](#26-sharing-boards-and-your-own-server))
 - **PDF for printing**: A4 or Letter pages, portrait, landscape or best fit, and cards are never cut in half ([section 20](#20-exporting-pdf-picture-and-markdown))
+- **Tables:** photos in cells, drag rows and columns to move them, and colour cells, rows and columns with any fill or text colour, plus bold, italic and underline ([section 4](#table))
 - **Scroll bars** along the bottom and right of the board whenever pictures or cards are off screen
 - **Page guides**: dashed A4 or Letter page outlines on the board, so you can lay things out for printing; turn them on and off with the page button or **Ctrl+Shift+G** ([section 20](#page-guides))
 - **Sketches:** pressure-sensitive pens, plus lines, arrows, rectangles and ellipses ([section 4](#sketch))
@@ -228,8 +229,37 @@ While you type in any card, a small **formatting bar** appears just above it:
 - **Shift+Enter** starts a new line inside a cell.
 - **+ Row** and **+ Column** appear under the table when you point at it.
 - **− Row** and **− Column** delete a row or column. Click a cell in the one you want to remove first; with no cell clicked, they remove the last one. Pointing at the button shades in red what will be deleted. A table always keeps at least one row and one column, and **Ctrl+Z** brings a deleted row or column back.
-- **Right-click a cell** to insert a row above or below, insert a column left or right, delete a row or column, or turn the heading row on or off.
+- **Right-click a cell** to move, insert or delete rows and columns, colour the cell, row or column, or turn the heading row on or off.
 - To edit a cell later: click the table once to select it, then click the cell.
+
+**Photos in cells**
+- **Drag a photo** from your computer onto a cell, or **paste** one (Ctrl+V) while typing in a cell. You can also right-click a cell and choose **Add a picture…**.
+- The photo fills the width of the cell, with the cell's text underneath. Make the table wider (drag its bottom-right corner) for bigger photos.
+- **Double-click** a photo to open it in your usual picture viewer.
+- Right-click the cell for **Replace picture…**, **Open picture**, **Save a copy of the picture…** or **Remove picture**.
+- Photos move with their row or column, sync to your other devices, and appear in exports.
+
+**Moving rows and columns**
+- Point at the table and small orange **grips** appear: one on the top edge of each column and one on the left edge of each row.
+- **Drag a grip** onto another row or column to move it there. A line shows where it will land.
+- While typing in a cell, **Alt+↑ / Alt+↓** move its row up or down, and **Alt+← / Alt+→** move its column. You keep typing in the same cell.
+- Right-click a cell (or a grip) for **Move row up / down** and **Move column left / right**.
+- Colours and styles move with their row or column, and **Ctrl+Z** undoes a move.
+
+**Colours and text styles**
+While you type in a cell, the formatting bar above the table has two extra buttons on the left:
+- **This cell ▾** chooses what the other buttons change: *This cell*, *This row*, *This column* or *Whole table*. While the pointer is over the bar, the cells it will change are outlined.
+- **Fill** (the paint pot) gives them a background colour: 20 ready-made colours, **Pick any colour…** for any other, or **No fill**.
+
+The other buttons work on the same choice:
+- **B**, ***I***, <u>**U**</u> and ~~**S**~~: bold, italic, underline and strikethrough. **Ctrl+B**, **Ctrl+I** and **Ctrl+U** work too.
+- **A**: text colour, from 16 colours or **Pick any colour…**
+- **Clear formatting** removes the colours and styles from the chosen cell, row, column or table.
+- The **font** and **size** always apply to the whole table.
+
+You can also right-click a cell and choose **Colour this cell…**, **Colour this row…**, **Colour this column…** or **Text colour and style…**.
+
+Where a coloured row crosses a coloured column, **whatever you did last wins**, so you can colour a whole row and then pick out single cells in it.
 
 ### Sketch
 A blank sheet to draw on: diagrams, doodles, storyboard frames, handwriting.

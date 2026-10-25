@@ -245,7 +245,10 @@ function assetIds(st) {
   const ok = (v) => typeof v === 'string' && /^[0-9a-f]{16}\.[a-z0-9]{1,10}$/.test(v);
   for (const b of Object.values((st && st.boards) || {})) {
     if (ok(b.iconAsset)) ids.add(b.iconAsset);
-    for (const c of Object.values(b.cards || {})) for (const k of ['asset', 'image', 'icon']) if (ok(c[k])) ids.add(c[k]);
+    for (const c of Object.values(b.cards || {})) {
+      for (const k of ['asset', 'image', 'icon']) if (ok(c[k])) ids.add(c[k]);
+      if (Array.isArray(c.pics)) for (const row of c.pics) if (Array.isArray(row)) for (const p of row) if (ok(p)) ids.add(p);
+    }
   }
   return [...ids];
 }

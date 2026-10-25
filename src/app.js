@@ -1780,10 +1780,11 @@ function boardToMd(bid, depth) {
       case 'swatch': return `\`${c.hex}\` ${c.title || ''}\n\n`;
       case 'table': {
         if (!c.rows.length) return '';
-        const cell = (t) => String(t || '').replace(/\|/g, '\\|').replace(/\n/g, ' ');
+        const cell = (t, r, k) => { const p = cellPic(c, r, k); return (p ? `![](assets/${p}) ` : '') + String(t || '').replace(/\|/g, '\\|').replace(/\n/g, ' '); };
+        const rowMd = (row, r) => `| ${row.map((t, k) => cell(t, r, k)).join(' | ')} |`;
         const head = c.header ? c.rows[0] : c.rows[0].map(() => '');
         const body = c.header ? c.rows.slice(1) : c.rows;
-        return [`| ${head.map(cell).join(' | ')} |`, `| ${head.map(() => '---').join(' | ')} |`, ...body.map((r) => `| ${r.map(cell).join(' | ')} |`)].join('\n') + '\n\n';
+        return [c.header ? rowMd(head, 0) : `| ${head.join(' | ')} |`, `| ${head.map(() => '---').join(' | ')} |`, ...body.map((r, i) => rowMd(r, i + (c.header ? 1 : 0)))].join('\n') + '\n\n';
       }
       case 'media': return `${c.kind === 'video' ? '🎬' : '🎵'} [${c.name || 'Media'}](assets/${c.asset})` + (c.caption ? ` — ${c.caption}` : '') + '\n\n';
       case 'sketch': return '_(sketch — export the board as a picture or PDF to see it)_\n\n';

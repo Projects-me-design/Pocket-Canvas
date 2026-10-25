@@ -176,6 +176,8 @@ function richClear() {
 
 function applyFormat(kind, value) {
   if (!fmtEd) return;
+  // in a table cell, bold / italic / underline / strikethrough / colour / clear go to the cell, row, column or table (table-style.js)
+  if (typeof tableFormat === 'function' && tableFormat(kind, value)) { updateFormatBar(); placeFormatBar(); return; }
   if (isRich()) {
     withRichSelection(() => {
       if (kind === 'bold') exec('bold');
@@ -217,7 +219,10 @@ function openFormatPop(kind, btn) {
   } else {
     fbPop.innerHTML = `<div class="fb-cols">${TEXT_COLOURS.map((col) =>
       `<button class="fb-col" data-v="${col}" style="--sw:${col}" title="${esc(colourName(col))}"></button>`).join('')}</div>
+      ${isRich() ? '' : '<label class="fb-item fb-custom">Pick any colour… <input type="color" value="#3a7be0"></label>'}
       <button class="fb-item" data-v="">Default colour</button>`;
+    const inp = fbPop.querySelector('input[type=color]');
+    if (inp) inp.addEventListener('change', () => { fbPop.hidden = true; applyFormat('colour', inp.value); });
   }
   fbPop.className = 'fb-pop ' + kind;
   fbPop.hidden = false;

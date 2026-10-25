@@ -761,6 +761,127 @@ function request(method, p, { body, token, origin } = {}) {
     await ex(`undo()`);
     check('tables: deleting can be undone', await ex(`B().cards['${q4Tbl}'].rows[0].length === 2`));
 
+    // ---------- tables: moving rows and columns, colours and text styles ----------
+    const T = await ex(`(() => { const c = makeCard(B(), 'table', 60, 360, { w: 420, header: true, rows: [['Name','Size','Colour'],['Apple','S','Red'],['Melon','L','Green'],['Plum','M','Purple']] }); selectOnly(c.id); renderBoard(); return c.id; })()`);
+    await sleep(200);
+    const TS = `.card[data-id="${T}"]`;
+    const rowsOf = () => ex(`JSON.stringify(B().cards['${T}'].rows)`);
+    check('tables: each column and row has a grip for moving it', await ex(`document.querySelectorAll('${TS} .tbl-grip.col').length === 3 && document.querySelectorAll('${TS} .tbl-grip.row').length === 4`));
+    // drag the first column's grip onto the third column
+    const g0 = await centre(`${TS} .tbl-grip.col[data-i="0"]`);
+    const c2 = await centre(`${TS} td[data-r="1"][data-c="2"]`);
+    await mouse('mouseMove', ...g0); await mouse('mouseDown', ...g0);
+    for (let k = 1; k <= 6; k++) await mouse('mouseMove', Math.round(g0[0] + (c2[0] - g0[0]) * k / 6), g0[1] + 20);
+    check('tables: while dragging, the drop place is marked', await ex(`document.querySelectorAll('${TS} td.drop-right').length === 4`));
+    await shot('table-move-column.png');
+    await mouse('mouseUp', c2[0], g0[1] + 20); await sleep(200);
+    check('tables: dragging a column grip moves the column', (await rowsOf()) === JSON.stringify([['Size','Colour','Name'],['S','Red','Apple'],['L','Green','Melon'],['M','Purple','Plum']]));
+    check('tables: dragging a grip doesn’t move the card', await ex(`B().cards['${T}'].x === 60 && B().cards['${T}'].y === 360`));
+    // drag the last row's grip up onto the second row
+    const gr = await centre(`${TS} .tbl-grip.row[data-i="3"]`);
+    const tr1 = await centre(`${TS} td[data-r="1"][data-c="0"]`);
+    await mouse('mouseMove', ...gr); await mouse('mouseDown', ...gr);
+    for (let k = 1; k <= 6; k++) await mouse('mouseMove', gr[0] + 10, Math.round(gr[1] + (tr1[1] - gr[1]) * k / 6));
+    await mouse('mouseUp', gr[0] + 10, tr1[1]); await sleep(200);
+    check('tables: dragging a row grip moves the row', (await rowsOf()) === JSON.stringify([['Size','Colour','Name'],['M','Purple','Plum'],['S','Red','Apple'],['L','Green','Melon']]));
+    await ex(`undo()`); await sleep(100);
+    check('tables: moving can be undone', (await rowsOf()) === JSON.stringify([['Size','Colour','Name'],['S','Red','Apple'],['L','Green','Melon'],['M','Purple','Plum']]));
+    // keyboard: Alt+↓ while typing
+    await ex(`(() => { const ed = document.querySelector('${TS} [data-field="cell:1:2"]'); makeEditable(ed); ed.focus(); })()`); await sleep(100);
+    await key('Down', ['alt']); await sleep(250);
+    check('tables: Alt+↓ moves the row you’re typing in down, and you keep typing in it', (await rowsOf()) === JSON.stringify([['Size','Colour','Name'],['L','Green','Melon'],['S','Red','Apple'],['M','Purple','Plum']]) && await ex(`document.activeElement.dataset.field === 'cell:2:2'`));
+    await key('Left', ['alt']); await sleep(250);
+    check('tables: Alt+← moves the column left', (await rowsOf()) === JSON.stringify([['Size','Name','Colour'],['L','Melon','Green'],['S','Apple','Red'],['M','Plum','Purple']]) && await ex(`document.activeElement.dataset.field === 'cell:2:1'`));
+    await ex(`document.activeElement.blur()`); await sleep(100);
+    // right-click menu
+    const rc = await centre(`${TS} td[data-r="2"][data-c="1"]`);
+    wc.sendInputEvent({ type: 'mouseDown', x: rc[0], y: rc[1], button: 'right', clickCount: 1 }); wc.sendInputEvent({ type: 'mouseUp', x: rc[0], y: rc[1], button: 'right', clickCount: 1 }); await sleep(250);
+    check('tables: right-clicking a cell offers moving, colouring and text style', await ex(`(() => { const t = [...document.querySelectorAll('#ctx button')].map(b => b.textContent); return ['Move row up', 'Move row down', 'Move column left', 'Move column right', 'Colour this cell…', 'Colour this row…', 'Colour this column…', 'Text colour and style…'].every(x => t.some(y => y.startsWith(x))); })()`));
+    await ex(`[...document.querySelectorAll('#ctx button')].find(b => b.textContent.startsWith('Move column right')).click()`); await sleep(200);
+    check('tables: “Move column right” from the menu', (await rowsOf()) === JSON.stringify([['Size','Colour','Name'],['L','Green','Melon'],['S','Red','Apple'],['M','Purple','Plum']]));
+    // colours: a single cell
+    await ex(`styleTablePart(B().cards['${T}'], 2, 0, 'cell')`); await sleep(400);
+    check('tables: typing in a cell shows fill colour and “This cell” in the formatting bar', await ex(`!document.querySelector('#format-bar').hidden && document.querySelector('#format-bar').classList.contains('in-table') && document.querySelector('.fb-scope-label').textContent === 'This cell' && !document.querySelector('.fb-pop').hidden && document.querySelector('.fb-pop').classList.contains('fill')`));
+    await shot('table-fill.png');
+    await ex(`document.querySelector('.fb-pop .fb-col[data-v="#fdf3c4"]').click()`); await sleep(150);
+    check('tables: a cell can be given its own fill colour', await ex(`(() => { const td = document.querySelector('${TS} td[data-r="2"][data-c="0"]'); return getComputedStyle(td).backgroundColor === 'rgb(253, 243, 196)' && B().cards['${T}'].styles.cells[2][0].bg === '#fdf3c4' && getComputedStyle(document.querySelector('${TS} td[data-r="2"][data-c="1"]')).backgroundColor !== 'rgb(253, 243, 196)'; })()`));
+    check('tables: you keep typing in the cell while colouring', await ex(`document.activeElement.dataset.field === 'cell:2:0'`));
+    // bold for the whole row via the scope menu
+    await ex(`document.querySelector('[data-fb="tscope"]').click()`); await sleep(100);
+    await ex(`document.querySelector('.fb-pop [data-v="row"]').click()`); await sleep(100);
+    check('tables: the bar can be switched to change the whole row', await ex(`document.querySelector('.fb-scope-label').textContent === 'This row'`));
+    await ex(`document.querySelector('[data-fb="bold"]').click()`); await sleep(150);
+    check('tables: Bold makes the whole row bold', await ex(`[...document.querySelectorAll('${TS} td[data-r="2"] .editable')].every(e => getComputedStyle(e).fontWeight === '700') && getComputedStyle(document.querySelector('${TS} td[data-r="1"] .editable')).fontWeight !== '700' && B().cards['${T}'].styles.rows[2].bold === true`));
+    await key('I', ['control']); await sleep(150);
+    check('tables: Ctrl+I makes the row italic', await ex(`[...document.querySelectorAll('${TS} td[data-r="2"] .editable')].every(e => getComputedStyle(e).fontStyle === 'italic')`));
+    await key('U', ['control']); await sleep(150);
+    check('tables: Ctrl+U underlines the row', await ex(`[...document.querySelectorAll('${TS} td[data-r="2"] .editable')].every(e => getComputedStyle(e).textDecorationLine.includes('underline'))`));
+    // text colour for a column
+    await ex(`document.querySelector('[data-fb="tscope"]').click()`); await sleep(100);
+    await ex(`document.querySelector('.fb-pop [data-v="col"]').click()`); await sleep(100);
+    await ex(`document.querySelector('[data-fb="colour"]').click()`); await sleep(100);
+    check('tables: a range of text colours to choose from', await ex(`document.querySelectorAll('.fb-pop.colour .fb-col').length >= 16`));
+    await ex(`document.querySelector('.fb-pop .fb-col[data-v="#3a7be0"]').click()`); await sleep(150);
+    check('tables: a whole column can be given a text colour', await ex(`[...document.querySelectorAll('${TS} td[data-c="0"] .editable')].every(e => getComputedStyle(e).color === 'rgb(58, 123, 224)') && getComputedStyle(document.querySelector('${TS} td[data-c="1"] .editable')).color !== 'rgb(58, 123, 224)'`));
+    // fill a row, then the column: the column (done last) shows where they meet
+    await ex(`document.querySelector('[data-fb="tscope"]').click()`); await sleep(80);
+    await ex(`document.querySelector('.fb-pop [data-v="row"]').click()`); await sleep(80);
+    await ex(`tableFormat('fill', '#dcf2e2')`); await sleep(80);
+    await ex(`document.querySelector('[data-fb="tscope"]').click()`); await sleep(80);
+    await ex(`document.querySelector('.fb-pop [data-v="col"]').click()`); await sleep(80);
+    await ex(`tableFormat('fill', '#dbe8fb')`); await sleep(150);
+    check('tables: whatever you colour last wins where a row and column meet', await ex(`(() => { const bg = (r, k) => getComputedStyle(document.querySelector('${TS} td[data-r="' + r + '"][data-c="' + k + '"]')).backgroundColor; return bg(2, 0) === 'rgb(219, 232, 251)' && bg(2, 1) === 'rgb(220, 242, 226)' && bg(1, 0) === 'rgb(219, 232, 251)'; })()`));
+    await shot('table-colours.png');
+    await ex(`document.activeElement.blur()`); await sleep(150);
+    // styles travel with moves, inserts and deletes
+    await ex(`moveTablePart(B().cards['${T}'], 'row', 2, 3)`); await sleep(150);
+    check('tables: colours and styles move with the row', await ex(`(() => { const td = document.querySelector('${TS} td[data-r="3"][data-c="1"]'); return getComputedStyle(td).backgroundColor === 'rgb(220, 242, 226)' && getComputedStyle(td.querySelector('.editable')).fontWeight === '700' && B().cards['${T}'].rows[3][1] === 'Red'; })()`));
+    await ex(`(() => { const c = B().cards['${T}']; checkpoint(); tblInsertCol(c, 0); rerenderCard(c.id); })()`); await sleep(150);
+    check('tables: inserting a column keeps every colour with its own cells', await ex(`(() => { const bg = (r, k) => getComputedStyle(document.querySelector('${TS} td[data-r="' + r + '"][data-c="' + k + '"]')).backgroundColor; return bg(1, 1) === 'rgb(219, 232, 251)' && bg(1, 0) !== 'rgb(219, 232, 251)' && B().cards['${T}'].styles.cols.length === 4; })()`));
+    await ex(`(() => { const c = B().cards['${T}']; checkpoint(); tblDeleteCol(c, 1); rerenderCard(c.id); })()`); await sleep(150);
+    check('tables: deleting a column takes its colours away with it', await ex(`(() => { const st = B().cards['${T}'].styles; return st.cols.length === 3 && !st.cols.some(s => s && s.bg === '#dbe8fb'); })()`));
+    // clearing
+    await ex(`styleTablePart(B().cards['${T}'], 3, 1, 'row', 'colour')`); await sleep(400);
+    await ex(`document.querySelector('.fb-pop') && (document.querySelector('.fb-pop').hidden = true); document.querySelector('[data-fb="clear"]').click()`); await sleep(150);
+    check('tables: “Clear formatting” resets the chosen row', await ex(`(() => { const td = document.querySelector('${TS} td[data-r="3"][data-c="1"]'); return getComputedStyle(td.querySelector('.editable')).fontWeight !== '700' && !(B().cards['${T}'].styles && B().cards['${T}'].styles.rows[3]); })()`));
+    await ex(`document.activeElement.blur()`); await sleep(100);
+    check('tables: grips and colour outlines are left out of exports', await ex(`[...document.styleSheets].some(s => { try { return [...s.cssRules].some(r => r.cssText.includes('.export-mode .tbl-grip')); } catch { return false; } })`));
+    check('tables: a styled table still syncs', await ex(`(() => { const remote = JSON.parse(JSON.stringify(PCSync.syncState(store))); const c = remote.boards[cur].cards['${T}']; c.styles = { rows: [], cols: [{ bg: '#f6dcec' }], cells: [] }; c._mt = Date.now() + 5000; const m = PCSync.merge(JSON.parse(JSON.stringify(store)), remote).store; return m.boards[cur].cards['${T}'].styles.cols[0].bg === '#f6dcec'; })()`));
+    // ---------- pictures in table cells ----------
+    const mkPic = (rgb) => `(async () => { const cv = document.createElement('canvas'); cv.width = 80; cv.height = 50; const g = cv.getContext('2d'); g.fillStyle = '${rgb}'; g.fillRect(0, 0, 80, 50); const b = await new Promise(r => cv.toBlob(r)); return new File([b], 'photo.png', { type: 'image/png' }); })()`;
+    const picCards = await ex(`Object.values(B().cards).filter(c => c.type === 'image').length`);
+    await ex(`(async () => { const f = await ${mkPic('#3a7be0')}; const dt = new DataTransfer(); dt.items.add(f); const td = document.querySelector('${TS} td[data-r="1"][data-c="2"]'); td.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt })); td.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt })); return true; })()`);
+    check('tables: dropping a photo onto a cell puts it in that cell', await until(() => ex(`(() => { const c = B().cards['${T}']; const img = document.querySelector('${TS} td[data-r="1"][data-c="2"] .tbl-pic img'); return !!(c.pics && c.pics[1][2]) && !!img && img.complete && img.naturalWidth === 80; })()`)));
+    check('tables: …instead of adding a separate picture card', await ex(`Object.values(B().cards).filter(c => c.type === 'image').length`) === picCards);
+    check('tables: the cell keeps its text under the photo', await ex(`document.querySelector('${TS} td[data-r="1"][data-c="2"] .editable').textContent.length > 0`));
+    // paste a photo while typing in another cell
+    await ex(`(() => { const ed = document.querySelector('${TS} [data-field="cell:3:0"]'); makeEditable(ed); ed.focus(); })()`); await sleep(100);
+    await ex(`(async () => { const f = await ${mkPic('#e0673a')}; const dt = new DataTransfer(); dt.items.add(f); document.activeElement.dispatchEvent(new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: dt })); return true; })()`);
+    check('tables: pasting a photo while typing in a cell puts it in that cell', await until(() => ex(`!!(B().cards['${T}'].pics && B().cards['${T}'].pics[3][0]) && !!document.querySelector('${TS} td[data-r="3"][data-c="0"] .tbl-pic img')`)));
+    await shot('table-photos.png');
+    // photos travel with the rows and columns
+    const picId = await ex(`B().cards['${T}'].pics[1][2]`);
+    await ex(`moveTablePart(B().cards['${T}'], 'row', 1, 2)`); await sleep(150);
+    await ex(`moveTablePart(B().cards['${T}'], 'col', 2, 0)`); await sleep(150);
+    check('tables: photos move with their row and column', await ex(`B().cards['${T}'].pics[2][0] === '${picId}' && !!document.querySelector('${TS} td[data-r="2"][data-c="0"] .tbl-pic img[src*="${picId}"]')`));
+    await ex(`(() => { const c = B().cards['${T}']; checkpoint(); tblInsertRow(c, 0); rerenderCard(c.id); })()`); await sleep(150);
+    check('tables: inserting a row keeps photos in their cells', await ex(`B().cards['${T}'].pics[3][0] === '${picId}'`));
+    // the right-click menu
+    const pc = await centre(`${TS} td[data-r="3"][data-c="0"]`);
+    wc.sendInputEvent({ type: 'mouseDown', x: pc[0], y: pc[1], button: 'right', clickCount: 1 }); wc.sendInputEvent({ type: 'mouseUp', x: pc[0], y: pc[1], button: 'right', clickCount: 1 }); await sleep(250);
+    check('tables: right-clicking a cell with a photo offers Replace, Open, Save a copy and Remove', await ex(`(() => { const t = [...document.querySelectorAll('#ctx button')].map(b => b.textContent); return ['Replace picture…', 'Open picture', 'Save a copy of the picture…', 'Remove picture'].every(x => t.includes(x)); })()`));
+    await ex(`hideMenu()`);
+    const ec = await centre(`${TS} td[data-r="1"][data-c="1"]`);
+    wc.sendInputEvent({ type: 'mouseDown', x: ec[0], y: ec[1], button: 'right', clickCount: 1 }); wc.sendInputEvent({ type: 'mouseUp', x: ec[0], y: ec[1], button: 'right', clickCount: 1 }); await sleep(250);
+    check('tables: an empty cell offers “Add a picture…”', await ex(`[...document.querySelectorAll('#ctx button')].some(b => b.textContent === 'Add a picture…')`));
+    await ex(`hideMenu()`);
+    check('tables: photos in tables sync to the server and appear in Markdown', await ex(`assetIds(PCSync.syncState(store)).includes('${picId}') && boardToMd(cur, 1).includes('![](assets/${picId})')`));
+    await ex(`(() => { const c = B().cards['${T}']; tableMenuItems(c, 3, 0).find(i => i.label === 'Remove picture').run(); return true; })()`); await sleep(150);
+    check('tables: a photo can be removed from its cell', await ex(`!document.querySelector('${TS} td[data-r="3"][data-c="0"] .tbl-pic') && !(B().cards['${T}'].pics && B().cards['${T}'].pics[3][0])`));
+    await ex(`undo()`); await sleep(150);
+    check('tables: removing a photo can be undone', await ex(`!!document.querySelector('${TS} td[data-r="3"][data-c="0"] .tbl-pic img')`));
+    await ex(`(() => { delete B().cards['${T}']; B().order = B().order.filter(i => i !== '${T}'); clearSelection(); renderBoard(); return true; })()`); await sleep(150);
+
     // ================= 1.4: board icon colours =================
     await ex(`openBoardIcon(cur)`); await sleep(300);
     check('board icons: 51 background colours to choose from', (await ex(`document.querySelectorAll('.ip-colours .ip-col').length`)) === 51);
