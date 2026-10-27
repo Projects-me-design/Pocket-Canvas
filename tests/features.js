@@ -882,6 +882,37 @@ function request(method, p, { body, token, origin } = {}) {
     check('tables: removing a photo can be undone', await ex(`!!document.querySelector('${TS} td[data-r="3"][data-c="0"] .tbl-pic img')`));
     await ex(`(() => { delete B().cards['${T}']; B().order = B().order.filter(i => i !== '${T}'); clearSelection(); renderBoard(); return true; })()`); await sleep(150);
 
+    // ---------- pasting tables from other programs ----------
+    const pasteOnBoard = (data, withPicture) => ex(`(async () => { document.activeElement && document.activeElement.blur && document.activeElement.blur(); clearSelection(); const before = new Set(Object.keys(B().cards)); const dt = new DataTransfer(); const d = ${JSON.stringify(data)}; for (const k in d) dt.setData(k, d[k]); ${withPicture ? "const cv = document.createElement('canvas'); cv.width = 4; cv.height = 4; const b = await new Promise(r => cv.toBlob(r)); dt.items.add(new File([b], 'image.png', { type: 'image/png' }));" : ''} document.dispatchEvent(new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: dt })); await new Promise(r => setTimeout(r, 300)); const added = Object.keys(B().cards).filter(id => !before.has(id)).map(id => B().cards[id]); return added.map(c => ({ id: c.id, type: c.type, rows: c.rows, header: c.header, styles: c.styles || null, html: c.html })); })()`);
+    // Excel: formats in a <style> block, plus a picture of the cells
+    const excelHtml = `<html><head><style><!--td{padding:0px;} .xl65{font-weight:700;background:#FFFF00;mso-pattern:black none;} .xl66{color:red;font-style:italic;} .xl67{text-decoration:underline;}--></style></head><body><table border=0><tr><td class=xl65>Item</td><td class=xl65>Price</td></tr><tr><td>Tea</td><td class=xl66>1.50</td></tr><tr><td class=xl67>Cake</td><td>2.75</td></tr><tr><td></td><td></td></tr></table></body></html>`;
+    const ex1 = await pasteOnBoard({ 'text/html': excelHtml, 'text/plain': 'Item\tPrice\nTea\t1.50\nCake\t2.75\n' }, true);
+    check('paste tables: a table copied from Excel becomes a table card, not a note', ex1.length === 1 && ex1[0].type === 'table' && JSON.stringify(ex1[0].rows) === JSON.stringify([['Item', 'Price'], ['Tea', '1.50'], ['Cake', '2.75']]));
+    check('paste tables: …ignoring the picture of the cells Excel also copies', ex1.length === 1);
+    check('paste tables: Excel’s fill colours, bold, italic, text colour and underline come across', !!ex1[0] && (() => { const c = ex1[0].styles.cells; return c[0][0].bg === '#ffff00' && c[0][0].bold === true && c[1][1].color === '#ff0000' && c[1][1].italic === true && c[2][0].underline === true && !c[1][0]; })());
+    await shot('paste-table.png');
+    // Google Sheets / web page: inline styles, a merged heading, <th> headings
+    const gsHtml = `<meta charset="utf-8"><google-sheets-html-origin><table><thead><tr><th colspan="2" style="background-color:#d9ead3;">Team</th><th>Role</th></tr></thead><tbody><tr><td>Sam</td><td><span style="font-weight:bold;color:#1155cc;">Lead</span></td><td>Design<br>Build</td></tr></tbody></table>`;
+    const ex2 = await pasteOnBoard({ 'text/html': gsHtml, 'text/plain': 'Team\t\tRole\nSam\tLead\tDesign Build' });
+    check('paste tables: headings (<th>) become the heading row, and merged cells are spread out', ex2.length === 1 && ex2[0].header === true && JSON.stringify(ex2[0].rows) === JSON.stringify([['Team', '', 'Role'], ['Sam', 'Lead', 'Design\nBuild']]));
+    check('paste tables: inline colours and bold (Google Sheets, Word, web pages) come across', !!ex2[0] && ex2[0].styles.cells[0][0].bg === '#d9ead3' && ex2[0].styles.cells[1][1].bold === true && ex2[0].styles.cells[1][1].color === '#1155cc');
+    // plain tab-separated text, with an Excel-quoted cell containing a new line
+    const ex3 = await pasteOnBoard({ 'text/plain': 'Name\tNotes\nAva\t"Line one\nLine two"\nBen\tok\n' });
+    check('paste tables: tab-separated text becomes a table', ex3.length === 1 && ex3[0].type === 'table' && JSON.stringify(ex3[0].rows) === JSON.stringify([['Name', 'Notes'], ['Ava', 'Line one\nLine two'], ['Ben', 'ok']]));
+    const ex4 = await pasteOnBoard({ 'text/plain': 'Just a sentence\nand another line' });
+    check('paste tables: ordinary text still becomes a note', ex4.length === 1 && ex4[0].type === 'note');
+    const ex5 = await pasteOnBoard({ 'text/html': '<table><tr><td>one cell</td></tr></table>', 'text/plain': 'one cell' });
+    check('paste tables: a single copied cell becomes a note', ex5.length === 1 && ex5[0].type === 'note');
+    // pasting into a cell fills from that cell, growing the table
+    const tgt = ex3[0].id;
+    await ex(`(() => { selectOnly('${tgt}'); const ed = document.querySelector('.card[data-id="${tgt}"] [data-field="cell:2:1"]'); makeEditable(ed); ed.focus(); return true; })()`); await sleep(100);
+    await ex(`(() => { const dt = new DataTransfer(); dt.setData('text/plain', 'x1\\ty1\\tz1\\nx2\\ty2\\tz2'); document.activeElement.dispatchEvent(new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: dt })); return true; })()`); await sleep(250);
+    check('paste tables: pasting cells while typing in a table fills from that cell, adding rows and columns', await ex(`JSON.stringify(B().cards['${tgt}'].rows) === JSON.stringify([['Name','Notes','',''],['Ava','Line one\\nLine two','',''],['Ben','x1','y1','z1'],['','x2','y2','z2']])`));
+    await ex(`undo()`); await sleep(150);
+    check('paste tables: pasting into a table can be undone', await ex(`JSON.stringify(B().cards['${tgt}'].rows) === JSON.stringify([['Name','Notes'],['Ava','Line one\\nLine two'],['Ben','ok']])`));
+    const pastedIds = [ex1[0], ex2[0], ex3[0], ex4[0], ex5[0]].filter(Boolean).map((c) => c.id);
+    await ex(`(() => { for (const id of ${JSON.stringify(pastedIds)}) delete B().cards[id]; B().order = B().order.filter(i => B().cards[i]); clearSelection(); renderBoard(); return true; })()`); await sleep(150);
+
     // ================= 1.4: board icon colours =================
     await ex(`openBoardIcon(cur)`); await sleep(300);
     check('board icons: 51 background colours to choose from', (await ex(`document.querySelectorAll('.ip-colours .ip-col').length`)) === 51);

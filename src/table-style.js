@@ -437,3 +437,196 @@ cardsEl.addEventListener('dblclick', (e) => {
   const id = c && cellPic(c, +td.dataset.r, +td.dataset.c);
   if (id) { e.stopPropagation(); api.openAsset(id); }
 });
+
+// ======================================================================
+// Pasting tables from other programs (Excel, Word, Google Sheets, LibreOffice, web pages…)
+// ======================================================================
+// Spreadsheets and documents put an HTML <table> on the clipboard, plus tab-separated text.
+// Both are turned into rows of text; colours, bold, italic and underline come across too
+// when the program includes them.
+
+// Tab-separated text, with Excel's "quoted" cells (which may contain tabs or new lines).
+function parseTsv(text) {
+  const rows = [[]];
+  let cell = '', i = 0, q = false;
+  const s = text.replace(/\r\n?/g, '\n').replace(/\n$/, '');
+  while (i < s.length) {
+    const ch = s[i];
+    if (q) {
+      if (ch === '"' && s[i + 1] === '"') { cell += '"'; i += 2; continue; }
+      if (ch === '"') { q = false; i++; continue; }
+      cell += ch; i++; continue;
+    }
+    if (ch === '"' && cell === '') { q = true; i++; continue; }
+    if (ch === '\t') { rows[rows.length - 1].push(cell); cell = ''; i++; continue; }
+    if (ch === '\n') { rows[rows.length - 1].push(cell); rows.push([]); cell = ''; i++; continue; }
+    cell += ch; i++;
+  }
+  rows[rows.length - 1].push(cell);
+  return rows;
+}
+// Does this plain text look like a table? (Every line has a tab, or it's a single line with tabs.)
+function tsvTable(text) {
+  if (!text || !text.includes('\t')) return null;
+  const rows = parseTsv(text);
+  const withTabs = rows.filter((r) => r.length > 1).length;
+  if (withTabs < Math.max(1, rows.length - 1)) return null; // allow one odd line (e.g. a title)
+  return { rows, header: false, styles: null };
+}
+
+// Colours from CSS (named, #hex or rgb()) as #rrggbb, or null.
+function cssHex(v) {
+  if (!v) return null;
+  v = String(v).trim().toLowerCase();
+  if (v === 'transparent' || v === 'inherit' || v === 'initial' || v === 'auto' || v === 'windowtext' || v === 'window') return null;
+  let m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/.exec(v);
+  if (m) return m[1].length === 3 ? '#' + m[1].split('').map((x) => x + x).join('') : v;
+  m = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([\d.]+))?\s*\)$/.exec(v);
+  if (m) { if (m[4] !== undefined && +m[4] === 0) return null; return '#' + [m[1], m[2], m[3]].map((x) => (+x).toString(16).padStart(2, '0')).join(''); }
+  if (/^[a-z]{3,20}$/.test(v)) {
+    const probe = document.createElement('span'); probe.style.color = v;
+    if (!probe.style.color) return null;
+    document.body.appendChild(probe); const c = getComputedStyle(probe).color; probe.remove();
+    return cssHex(c);
+  }
+  return null;
+}
+
+// HTML from the clipboard → { rows, header, styles } or null if there's no table.
+function htmlTable(html) {
+  if (!html || !/<table[\s>]/i.test(html)) return null;
+  const doc = new DOMParser().parseFromString(html, 'text/html'); // inert: nothing in it runs or loads
+  const table = doc.querySelector('table');
+  if (!table) return null;
+  // simple ".class { … }" rules (Excel and LibreOffice put cell formats in a <style> block)
+  const classRules = {};
+  for (const st of doc.querySelectorAll('style')) {
+    const css = st.textContent.replace(/\/\*[\s\S]*?\*\//g, '').replace(/<!--|-->/g, '');
+    for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      for (const sel of m[1].split(',')) {
+        const cm = /^\s*(?:td|th)?\.([\w-]+)\s*$/.exec(sel);
+        if (cm) classRules[cm[1]] = (classRules[cm[1]] || '') + ';' + m[2];
+      }
+    }
+  }
+  const declsOf = (el) => {
+    const list = [];
+    for (const cls of el.classList || []) if (classRules[cls]) list.push(classRules[cls]);
+    if (el.getAttribute('style')) list.push(el.getAttribute('style'));
+    const out = {};
+    for (const part of list.join(';').split(';')) {
+      const i = part.indexOf(':'); if (i < 0) continue;
+      out[part.slice(0, i).trim().toLowerCase()] = part.slice(i + 1).trim().replace(/\s*!important$/, '');
+    }
+    return out;
+  };
+  const textOf = (td) => {
+    const c = td.cloneNode(true);
+    c.querySelectorAll('br').forEach((b) => b.replaceWith('\n'));
+    c.querySelectorAll('p, div, li').forEach((p) => p.append('\n'));
+    c.querySelectorAll('style, script').forEach((n) => n.remove());
+    return c.textContent.replace(/ /g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{2,}/g, '\n').replace(/[ \t]{2,}/g, ' ').trim();
+  };
+  const styleOf = (td, tr) => {
+    const s = {};
+    const d = { ...declsOf(tr), ...declsOf(td) };
+    const bg = cssHex(d['background-color'] || (d.background && d.background.split(/\s+/).find((x) => cssHex(x))) || td.getAttribute('bgcolor') || tr.getAttribute('bgcolor'));
+    if (bg && bg !== '#ffffff') s.bg = bg;
+    // the text's own colour and weight can sit on inner <span>/<font>/<b> tags (Word, Google Sheets)
+    const inner = td.querySelector('span[style*="color"], font[color]');
+    const colour = cssHex(d.color || (inner && (inner.getAttribute('color') || (inner.getAttribute('style').match(/(?:^|;)\s*color\s*:\s*([^;]+)/i) || [])[1])));
+    if (colour && colour !== '#000000') s.color = colour;
+    const w = d['font-weight'];
+    if ((w && (w === 'bold' || +w >= 600)) || td.querySelector('b, strong') || /font-weight\s*:\s*(bold|[6-9]00)/i.test(td.innerHTML)) s.bold = true;
+    if (d['font-style'] === 'italic' || td.querySelector('i, em') || /font-style\s*:\s*italic/i.test(td.innerHTML)) s.italic = true;
+    const deco = (d['text-decoration'] || '') + ' ' + (d['text-decoration-line'] || '');
+    if (/underline/.test(deco) || td.querySelector('u') || /text-decoration[^;"]*underline/i.test(td.innerHTML)) s.underline = true;
+    if (/line-through/.test(deco) || td.querySelector('s, strike, del')) s.strike = true;
+    return cleanCellStyle(s);
+  };
+  // rows of this table only (not tables inside cells), honouring colspan and rowspan
+  const trs = [...table.querySelectorAll('tr')].filter((tr) => tr.closest('table') === table);
+  const rows = [], styles = [], taken = [];
+  trs.forEach((tr, r) => {
+    rows[r] = rows[r] || []; styles[r] = styles[r] || [];
+    let k = 0;
+    for (const td of [...tr.children].filter((x) => /^(TD|TH)$/.test(x.tagName))) {
+      while (taken[r] && taken[r][k]) k++;
+      const span = Math.min(Math.max(1, +td.getAttribute('colspan') || 1), 50);
+      const down = Math.min(Math.max(1, +td.getAttribute('rowspan') || 1), 200);
+      const look = styleOf(td, tr);
+      for (let dr = 0; dr < down; dr++) for (let dc = 0; dc < span; dc++) {
+        const rr = r + dr, kk = k + dc;
+        rows[rr] = rows[rr] || []; styles[rr] = styles[rr] || []; taken[rr] = taken[rr] || [];
+        rows[rr][kk] = dr === 0 && dc === 0 ? textOf(td) : '';
+        styles[rr][kk] = look; taken[rr][kk] = true;
+      }
+      k += span;
+    }
+  });
+  const grid = rows.filter(Boolean);
+  if (!grid.length) return null;
+  const cols = Math.min(50, Math.max(...grid.map((r) => r.length)));
+  const out = grid.slice(0, 500).map((r) => Array.from({ length: cols }, (_, k) => r[k] || ''));
+  const st = styles.slice(0, out.length).map((r) => Array.from({ length: cols }, (_, k) => (r && r[k]) || null));
+  // drop completely empty trailing rows and columns (spreadsheets often include them)
+  while (out.length > 1 && out[out.length - 1].every((x) => !x)) { out.pop(); st.pop(); }
+  let used = cols; while (used > 1 && out.every((r) => !r[used - 1])) used--;
+  const rowsOut = out.map((r) => r.slice(0, used)), stOut = st.map((r) => r.slice(0, used));
+  const header = !!(table.querySelector('thead') || [...(trs[0] ? trs[0].children : [])].some((x) => x.tagName === 'TH'));
+  return { rows: rowsOut, header, styles: stOut.some((r) => r.some(Boolean)) ? stOut : null };
+}
+
+// Whatever table is on the clipboard (HTML first, then tab-separated text), or null.
+function clipboardTable(cd) {
+  const t = htmlTable(cd.getData('text/html')) || tsvTable(cd.getData('text/plain'));
+  if (!t || !t.rows.length) return null;
+  if (t.rows.length === 1 && t.rows[0].length === 1) return null; // a single cell is just text
+  return t;
+}
+
+// Add a new table card from pasted rows.
+function addPastedTable(t, pos) {
+  const cols = Math.max(...t.rows.map((r) => r.length));
+  const rows = t.rows.map((r) => Array.from({ length: cols }, (_, k) => r[k] || ''));
+  const w = Math.max(280, Math.min(1100, cols * 140));
+  const extra = { w, header: t.header, rows };
+  if (t.styles) extra.styles = { rows: rows.map(() => null), cols: Array(cols).fill(null), cells: t.styles.map((r) => Array.from({ length: cols }, (_, k) => r[k] || null)) };
+  const c = addCard('table', pos, extra);
+  if (c.styles) { tableStyles(c); tidyStyles(c); }
+  rerenderCard(c.id); selectOnly(c.id); scheduleSave();
+  toast(`Pasted a table: ${rows.length} row${rows.length === 1 ? '' : 's'} × ${cols} column${cols === 1 ? '' : 's'}`);
+  return c;
+}
+
+// Paste several cells while typing in a table: fill from the cell you're in, adding rows and columns as needed.
+function pasteIntoTable(c, r0, k0, t) {
+  checkpoint();
+  const st = t.styles ? tableStyles(c, true) : null;
+  t.rows.forEach((row, dr) => {
+    while (c.rows.length <= r0 + dr) tblInsertRow(c, c.rows.length);
+    row.forEach((v, dc) => {
+      while (tableCols(c) <= k0 + dc) tblInsertCol(c, tableCols(c));
+      c.rows[r0 + dr][k0 + dc] = v;
+      const look = t.styles && t.styles[dr] && t.styles[dr][dc];
+      if (look) tableStyles(c, true).cells[r0 + dr][k0 + dc] = look;
+    });
+  });
+  if (st || t.styles) tidyStyles(c);
+  rerenderCard(c.id); scheduleSave();
+  toast(`Pasted ${t.rows.length} × ${Math.max(...t.rows.map((x) => x.length))} cells`);
+}
+
+// While typing in a table cell: a pasted table fills the cells.
+cardsEl.addEventListener('paste', (e) => {
+  const ed = e.target.closest && e.target.closest('.editable[data-field^="cell:"]');
+  if (!ed || !ed.isContentEditable) return;
+  const t = clipboardTable(e.clipboardData);
+  if (!t) return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  const [, r, k] = ed.dataset.field.split(':').map(Number);
+  const c = B().cards[ed.closest('.card').dataset.id];
+  setField(c, ed.dataset.field, ed);
+  ed.blur();
+  pasteIntoTable(c, r, k, t);
+}, true);

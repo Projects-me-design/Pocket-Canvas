@@ -1470,6 +1470,13 @@ document.addEventListener('paste', async (e) => {
       }
     } catch {}
   }
+  // (checked before pictures: Excel also puts a picture of the cells on the clipboard)
+  // a table copied from a spreadsheet, document or web page becomes a table card (table-style.js)
+  const tbl = typeof clipboardTable === 'function' && clipboardTable(e.clipboardData);
+  if (tbl) {
+    addPastedTable(tbl, pos); // (to fill an existing table instead, click into a cell and paste there)
+    return;
+  }
   const files = [...e.clipboardData.files];
   if (files.length) {
     const one = selected.size === 1 && B().cards[[...selected][0]];

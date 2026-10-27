@@ -12,6 +12,14 @@ Safari runs the same browser extension as Chrome, Edge and Firefox. Apple's conv
   - The Mac app is then built with Xcode.
 - **Using it in Safari is a manual check**, because GitHub's machines can't drive Safari extensions. Use the checklist at the end.
 
+## If the safari job fails
+
+The **pocket-canvas-safari-extension** download is saved even when the build fails. It contains:
+- `safari-converter-report.txt`: what Apple's converter said about the extension
+- `safari-build-log.txt`: the full Xcode build log
+
+The error lines also appear in the run's **Annotations**. The other jobs (Windows, Mac, Linux, Android, iPhone/iPad) aren't affected, and their files still attach to a release.
+
 ## Installing it on your Mac (for testing)
 
 1. On the workflow run page, download **pocket-canvas-safari-extension** and unzip it.

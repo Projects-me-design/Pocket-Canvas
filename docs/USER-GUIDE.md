@@ -9,7 +9,7 @@ This guide is for anyone using the app. You don't need any technical knowledge.
 **Version 1.5**
 - **Share boards with other people** and edit them together, live, through your own **Pocket-Canvas Server**, which also syncs your devices without a sync folder ([section 26](#26-sharing-boards-and-your-own-server))
 - **PDF for printing**: A4 or Letter pages, portrait, landscape or best fit, and cards are never cut in half ([section 20](#20-exporting-pdf-picture-and-markdown))
-- **Tables:** photos in cells, drag rows and columns to move them, and colour cells, rows and columns with any fill or text colour, plus bold, italic and underline ([section 4](#table))
+- **Tables:** paste tables from Excel, Word, Google Sheets and web pages, photos in cells, drag rows and columns to move them, and colour cells, rows and columns with any fill or text colour, plus bold, italic and underline ([section 4](#table))
 - **Scroll bars** along the bottom and right of the board whenever pictures or cards are off screen
 - **Page guides**: dashed A4 or Letter page outlines on the board, so you can lay things out for printing; turn them on and off with the page button or **Ctrl+Shift+G** ([section 20](#page-guides))
 - **Sketches:** pressure-sensitive pens, plus lines, arrows, rectangles and ellipses ([section 4](#sketch))
@@ -231,6 +231,13 @@ While you type in any card, a small **formatting bar** appears just above it:
 - **− Row** and **− Column** delete a row or column. Click a cell in the one you want to remove first; with no cell clicked, they remove the last one. Pointing at the button shades in red what will be deleted. A table always keeps at least one row and one column, and **Ctrl+Z** brings a deleted row or column back.
 - **Right-click a cell** to move, insert or delete rows and columns, colour the cell, row or column, or turn the heading row on or off.
 - To edit a cell later: click the table once to select it, then click the cell.
+
+**Pasting a table from another program**
+- Copy cells from **Excel**, **Google Sheets**, **LibreOffice**, **Word** or a web page, click an empty spot on the board and press **Ctrl+V**. You get a table card with the same rows and columns.
+- Fill colours, text colours, **bold**, *italic* and underlining come across too, when the program includes them. Merged cells are spread out into separate cells.
+- Tab-separated text pastes as a table too.
+- **To paste into a table you already have**, click into a cell and press **Ctrl+V**. The cells fill from that one, and rows and columns are added if needed. **Ctrl+Z** undoes it.
+- Copying a single cell still pastes as ordinary text.
 
 **Photos in cells**
 - **Drag a photo** from your computer onto a cell, or **paste** one (Ctrl+V) while typing in a cell. You can also right-click a cell and choose **Add a picture…**.
